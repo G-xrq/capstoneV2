@@ -888,17 +888,14 @@ body:has(.bbdrts-maint-modal-overlay) {
 }
 
 
-/* ── Non-Blocking Upcoming Maintenance Countdown Bar (Effective From in Future) ── */
+/* ── Non-Blocking Upcoming Maintenance Countdown Bar (In-flow above Header, never covers nav) ── */
 .bbdrts-maint-upcoming-bar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 99980;
+  position: relative;
+  width: 100%;
+  z-index: 10001;
   background: #181208;
   border-bottom: 1px solid rgba(245, 158, 11, 0.38);
   color: #fde68a;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
   animation: upcomingSlideIn 0.2s ease-out forwards;
 }
 

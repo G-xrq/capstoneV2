@@ -252,7 +252,7 @@ export default function MaintenanceGuardModal({
   if (!isAdmin && !isPreviewMode && !isRestoringNow && isScheduledFuture && isViewTargeted) {
     if (dismissUpcoming && !isPreFreeze) return null;
     const startsInText = formatCountdown(startMs - nowMs);
-    return createPortal(
+    return (
       <div className={`bbdrts-maint-upcoming-bar ${isPreFreeze ? 'is-freezing' : ''}`} role="status" aria-live="polite">
         <div className="upcoming-bar-inner">
           <div className="upcoming-bar-left">
@@ -292,8 +292,7 @@ export default function MaintenanceGuardModal({
             </button>
           )}
         </div>
-      </div>,
-      document.body
+      </div>
     );
   }
 
