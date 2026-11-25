@@ -907,46 +907,6 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
     }
   };
 
-  // Direct Admin Access Bypass
-  const handleDirectAdminAccess = async (e) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-    try {
-      const res = await fetch(`${API_URL}/api/auth/direct-admin`, { method: 'POST' });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.token && data.user) {
-          localStorage.setItem('bbdrts_token', data.token);
-          localStorage.setItem('bbdrts_role', 'admin');
-          localStorage.removeItem('bbdrts_needs_onboarding');
-          localStorage.removeItem('bbdrts_is_new_registration');
-          localStorage.removeItem('bbdrts_tour_force_launch');
-          onLoginSuccess?.(data.user, data.token);
-          return;
-        }
-      }
-    } catch (err) {
-      console.warn('Direct admin API failed, falling back:', err);
-    }
-
-    const adminUser = {
-      id: 1,
-      name: 'System Administrator',
-      email: 'admin@bbdrts.gov.ph',
-      role: 'admin',
-      wallet_address: '0x206e5d8b76c8c4598d1a457493a746535560b771',
-      verification_status: 'Approved'
-    };
-    localStorage.setItem('bbdrts_token', 'direct_admin_access_token');
-    localStorage.setItem('bbdrts_role', 'admin');
-    localStorage.removeItem('bbdrts_needs_onboarding');
-    localStorage.removeItem('bbdrts_is_new_registration');
-    localStorage.removeItem('bbdrts_tour_force_launch');
-    onLoginSuccess?.(adminUser, 'direct_admin_access_token');
-  };
-
   // ── Forgot Password: Send 60-Minute Reset Link via Dedicated Email ─────────
   const handleForgotRequestLink = async (e) => {
     e.preventDefault();
@@ -1124,26 +1084,6 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
         ) : <span />}
 
         <div className="auth-topbar-right">
-          <button
-            type="button"
-            className="auth-corner-pill"
-            onClick={handleDirectAdminAccess}
-            title="Direct Access to Administrator Dashboard"
-          >
-            <span className="material-symbols-outlined">admin_panel_settings</span>
-            <span>Admin Access</span>
-          </button>
-
-          <button
-            type="button"
-            className="auth-corner-pill"
-            onClick={() => window.dispatchEvent(new CustomEvent('bbdrts_open_onboarding'))}
-            title="Interactive UI Prototype: Preview First-Time Personalization Experience"
-          >
-            <span className="material-symbols-outlined">tune</span>
-            <span>Preview</span>
-          </button>
-
           {onToggleTheme && (
             <button
               type="button"
@@ -1162,19 +1102,6 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
 
       <div className="login-form-side fade-in">
         <div className={`login-glass-card ${isRegistering ? 'right-panel-active' : ''} ${hasInteracted ? 'has-interacted' : ''}`}>
-
-          {/* Quick Direct Admin Access Floating Button */}
-          {/*}
-          <button
-            type="button"
-            className="bbdrts-auth-floating-admin-btn"
-            onClick={handleDirectAdminAccess}
-            title="Direct Access to Administrator Dashboard"
-          >
-            <span className="material-symbols-outlined">admin_panel_settings</span>
-            <span>Direct Admin Access</span>
-          </button>
-          */}
 
           {/* ===== FORM 1: SIGN IN (RIGHT HALF BY DEFAULT) ===== */}
           <div className="form-panel sign-in-panel">
