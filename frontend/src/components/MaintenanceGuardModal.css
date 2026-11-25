@@ -1033,6 +1033,10 @@ body:has(.bbdrts-maint-modal-overlay) {
 .bbdrts-maint-upcoming-bar {
   position: relative;
   width: 100%;
+  min-height: var(--app-banner-h, 40px);
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
   z-index: 10001;
   background: #181208;
   border-bottom: 1px solid rgba(245, 158, 11, 0.38);
@@ -1078,9 +1082,12 @@ body:has(.bbdrts-maint-modal-overlay) {
 }
 
 .upcoming-bar-inner {
-  max-width: 1280px;
+  width: 100%;
+  max-width: 1320px;
+  min-height: 39px;
   margin: 0 auto;
-  padding: 8px 16px;
+  padding: 6px 16px;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: space-between;
