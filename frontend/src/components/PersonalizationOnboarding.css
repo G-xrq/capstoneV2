@@ -3986,3 +3986,208 @@
 .onboarding-preview-window.light.high-contrast .prv-geist-milestone {
   border: 2px solid #000000 !important;
 }
+
+
+/* ── CLEAN LAYOUT & BREATHING ROOM POLISH ── */
+.onboarding-card {
+  max-width: 1120px;
+  height: auto !important;
+  min-height: 620px !important;
+  max-height: min(748px, calc(100vh - 32px)) !important;
+}
+
+.onboarding-header {
+  height: 56px !important;
+  min-height: 56px !important;
+  max-height: 56px !important;
+  padding: 0 26px !important;
+}
+
+.onboarding-segmented-track {
+  padding: 0 26px !important;
+  margin-top: 0 !important;
+  height: 2px !important;
+  gap: 4px !important;
+}
+
+.onboarding-segment-step {
+  height: 2px !important;
+}
+
+.onboarding-card .onboarding-body,
+.onboarding-card.is-side-by-side .onboarding-body,
+.onboarding-card.is-step-2 .onboarding-body {
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  flex: 1 1 auto !important;
+  overflow-y: auto !important;
+  padding: 20px 26px 22px !important;
+}
+
+.onboarding-step-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Fix clipped subtitle: never lock meta header to 76px with overflow: hidden */
+.onboarding-section-meta {
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: visible !important;
+  margin-bottom: 18px !important;
+}
+
+.onboarding-meta-inner {
+  height: auto !important;
+}
+
+.onboarding-section-tag {
+  margin-bottom: 5px !important;
+  font-size: 0.70rem !important;
+  letter-spacing: 0.08em !important;
+}
+
+.onboarding-section-title {
+  font-size: 1.38rem !important;
+  margin: 0 0 5px 0 !important;
+  line-height: 1.24 !important;
+}
+
+.onboarding-section-desc {
+  font-size: 0.84rem !important;
+  line-height: 1.48 !important;
+  max-width: 660px;
+}
+
+/* Balanced, non-clipping side-by-side split */
+.onboarding-side-by-side {
+  display: grid !important;
+  grid-template-columns: 348px minmax(0, 1fr) !important;
+  gap: 24px !important;
+  align-items: start !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.onboarding-left-panel {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.onboarding-panel-inner {
+  height: auto !important;
+  gap: 10px !important;
+}
+
+.onboarding-right-panel {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+}
+
+/* Compact, calm mode highlights card */
+.onboarding-mode-diff-box.is-compact {
+  margin-top: 2px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid #222226;
+  gap: 8px;
+}
+
+[data-theme="light"] .onboarding-mode-diff-box.is-compact {
+  background: #f8fafc;
+  border-color: #e4e4e7;
+}
+
+.onboarding-mode-diff-box.is-compact .onboarding-diff-header {
+  font-size: 0.70rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #71717a;
+}
+
+.onboarding-diff-checklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.onboarding-diff-checklist li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.77rem;
+  line-height: 1.35;
+  color: #d4d4d8;
+}
+
+[data-theme="light"] .onboarding-diff-checklist li {
+  color: #3f3f46;
+}
+
+.onboarding-diff-check {
+  font-size: 14px !important;
+  color: #10b981;
+  flex-shrink: 0;
+}
+
+/* Minimalist clickable step dots in footer */
+.onboarding-footer {
+  padding: 14px 26px !important;
+}
+
+.onboarding-footer-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.onboarding-footer-dot {
+  width: 7px;
+  height: 7px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: #27272a;
+  cursor: pointer;
+  transition: width 0.2s ease, background 0.2s ease;
+}
+
+[data-theme="light"] .onboarding-footer-dot {
+  background: #d4d4d8;
+}
+
+.onboarding-footer-dot.is-done {
+  background: #52525b;
+}
+
+[data-theme="light"] .onboarding-footer-dot.is-done {
+  background: #71717a;
+}
+
+.onboarding-footer-dot.is-active {
+  width: 22px;
+  background: #10b981;
+}
+
+@media (max-width: 900px) {
+  .onboarding-side-by-side {
+    grid-template-columns: 1fr !important;
+    gap: 18px !important;
+  }
+}

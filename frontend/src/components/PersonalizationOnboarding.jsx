@@ -875,14 +875,14 @@ export default function PersonalizationOnboarding({
                 {step === 1 && (
                   <>
                     <span className="onboarding-section-tag">
-                      <VercelIcon name="tune" size={14} color="#10b981" />
-                      Step 1 of 5 · Interface Presentation Mode
+                      <VercelIcon name="tune" size={13} color="#10b981" />
+                      Interface Mode
                     </span>
                     <h2 className="onboarding-section-title" id="onboarding-title">
-                      Choose your interface presentation mode
+                      Choose your interface layout
                     </h2>
                     <p className="onboarding-section-desc">
-                      Both modes belong to the same BBDRTS application. Select how information, telemetry, and actions are structured.
+                      Pick how much telemetry and navigation density appears across your workspace. You can switch anytime in Settings.
                     </p>
                   </>
                 )}
@@ -890,14 +890,14 @@ export default function PersonalizationOnboarding({
                 {step === 2 && (
                   <>
                     <span className="onboarding-section-tag">
-                      <VercelIcon name="visibility" size={14} color="#10b981" />
-                      Step 2 of 5 · Display Theme
+                      <VercelIcon name="visibility" size={13} color="#10b981" />
+                      Display Theme
                     </span>
                     <h2 className="onboarding-section-title" id="onboarding-title">
                       Select your display theme
                     </h2>
                     <p className="onboarding-section-desc">
-                      Choose how the BBDRTS workspace appears across daytime relief operations and low-light field conditions.
+                      Choose how the BBDRTS workspace appears across daytime operations and low-light environments.
                     </p>
                   </>
                 )}
@@ -905,14 +905,14 @@ export default function PersonalizationOnboarding({
                 {step === 3 && (
                   <>
                     <span className="onboarding-section-tag">
-                      <VercelIcon name="translate" size={14} color="#10b981" />
-                      Step 3 of 5 · Preferred Platform Language
+                      <VercelIcon name="translate" size={13} color="#10b981" />
+                      Platform Language
                     </span>
                     <h2 className="onboarding-section-title" id="onboarding-title">
                       Choose your platform language
                     </h2>
                     <p className="onboarding-section-desc">
-                      Calibrates campaign dossiers, receipt terminology, and field disaster alerts to your native dialect.
+                      Adapts campaign dossiers, receipt terminology, and disaster alerts to your preferred dialect.
                     </p>
                   </>
                 )}
@@ -920,14 +920,14 @@ export default function PersonalizationOnboarding({
                 {step === 4 && (
                   <>
                     <span className="onboarding-section-tag">
-                      <VercelIcon name="text_fields" size={14} color="#10b981" />
-                      Step 4 of 5 · Interface Text Size &amp; Typography
+                      <VercelIcon name="text_fields" size={13} color="#10b981" />
+                      Typography Scale
                     </span>
                     <h2 className="onboarding-section-title" id="onboarding-title">
                       Adjust interface text size
                     </h2>
                     <p className="onboarding-section-desc">
-                      Set your baseline typography scale for optimal reading comfort across campaign feeds and blockchain ledgers.
+                      Set your baseline text scale for comfortable reading across campaign feeds and audit ledgers.
                     </p>
                   </>
                 )}
@@ -935,14 +935,14 @@ export default function PersonalizationOnboarding({
                 {step === 5 && (
                   <>
                     <span className="onboarding-section-tag">
-                      <VercelIcon name="shield" size={14} color="#10b981" />
-                      Step 5 of 5 · Visual &amp; Cognitive Controls
+                      <VercelIcon name="shield" size={13} color="#10b981" />
+                      Comfort &amp; Accessibility
                     </span>
                     <h2 className="onboarding-section-title" id="onboarding-title">
-                      Fine-tune visual &amp; cognitive controls
+                      Fine-tune visual &amp; data controls
                     </h2>
                     <p className="onboarding-section-desc">
-                      Configure comfort switches for motion sensitivity, high-contrast clarity, and field data-saving.
+                      Configure optional controls for reduced motion, high-contrast borders, and low-bandwidth relief maps.
                     </p>
                   </>
                 )}
@@ -1024,27 +1024,30 @@ export default function PersonalizationOnboarding({
                     </p>
                   </div>
 
-                  {/* Concrete Differences Breakdown Callout */}
-                  <div className="onboarding-mode-diff-box">
+                  {/* Scannable Mode Highlights */}
+                  <div className="onboarding-mode-diff-box is-compact">
                     <div className="onboarding-diff-header">
-                      <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#10b981' }}>compare_arrows</span>
-                      <span>What changes in {prefs.experienceMode === 'standard' ? 'Standard Mode' : 'Simplified Mode'}:</span>
+                      <span>Included in {prefs.experienceMode === 'standard' ? 'Standard Mode' : 'Simplified Mode'}</span>
                     </div>
-                    {prefs.experienceMode === 'standard' ? (
-                      <ul className="onboarding-diff-list">
-                        <li><strong>Dual Aligned Buttons:</strong> Every campaign card features aligned Donate and Details &amp; Map action buttons.</li>
-                        <li><strong>4-Card Telemetry Grid:</strong> Shows verified PHP totals, priority counts, and honor roll tier.</li>
-                        <li><strong>Blockchain Audit Telemetry:</strong> Displays live Sepolia notarization status and audit ledger tag.</li>
-                        <li><strong>Full Navigation:</strong> Complete 5-item sidebar with audit access and advanced tools.</li>
-                      </ul>
-                    ) : (
-                      <ul className="onboarding-diff-list">
-                        <li><strong>Direct Action Button:</strong> Essential card layout with one prominent "Donate Relief" action.</li>
-                        <li><strong>Clean Welcome Hero:</strong> Replaces dense telemetry banners &amp; 4 utility buttons with a simple direct start button.</li>
-                        <li><strong>Lightweight Reassurance Strip:</strong> Replaces 4 zero-metric boxes with a clean 2-pill status bar.</li>
-                        <li><strong>Essential Navigation:</strong> Focused 3-item sidebar reducing cognitive load for new donors.</li>
-                      </ul>
-                    )}
+                    <ul className="onboarding-diff-checklist">
+                      {(prefs.experienceMode === 'standard'
+                        ? [
+                            '4-metric financial & impact telemetry strip',
+                            'Dual Donate + Details & Map campaign actions',
+                            'Full 5-section sidebar with audit ledger & radar'
+                          ]
+                        : [
+                            'Single prominent Donate Relief action per card',
+                            'Streamlined hero & 2-pill verification strip',
+                            'Focused 3-section essentials sidebar'
+                          ]
+                      ).map((item) => (
+                        <li key={item}>
+                          <span className="material-symbols-outlined onboarding-diff-check">check</span>
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                     </>
                   )}
@@ -1642,10 +1645,22 @@ export default function PersonalizationOnboarding({
               <span>Back</span>
             </button>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '0.76rem', color: '#71717a', fontFamily: 'var(--font-mono, monospace)' }}>
-                {step <= 5 ? `Step ${step} of 5` : 'Review'}
-              </span>
+            <div className="onboarding-footer-dots" aria-label="Setup progress">
+              {[1, 2, 3, 4, 5].map((dot) => (
+                <button
+                  key={dot}
+                  type="button"
+                  className={`onboarding-footer-dot ${dot === step ? 'is-active' : dot < step || step === 6 ? 'is-done' : ''}`}
+                  onClick={() => {
+                    if (dot !== step) {
+                      setSlideDirection(dot > step ? 'next' : 'prev');
+                      setStep(dot);
+                    }
+                  }}
+                  title={`Go to step ${dot}`}
+                  aria-label={`Step ${dot}`}
+                />
+              ))}
             </div>
 
             <button
