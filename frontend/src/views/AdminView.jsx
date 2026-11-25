@@ -1017,19 +1017,6 @@ export default function AdminView({
     return list;
   }, [ledgerData]);
 
-  const pillRailCounts = useMemo(() => {
-    let gcash = 0;
-    let maya = 0;
-    let bank = 0;
-    for (const item of allUnifiedLedgerList) {
-      const r = (item.rail || '').toLowerCase();
-      if (r.includes('gcash')) gcash++;
-      else if (r.includes('maya')) maya++;
-      else bank++;
-    }
-    return { gcash, maya, bank };
-  }, [allUnifiedLedgerList]);
-
   const unifiedLedgerList = useMemo(() => {
     return allUnifiedLedgerList.filter(item => {
       const railLower = (item.rail || '').toLowerCase();
@@ -1459,7 +1446,7 @@ export default function AdminView({
   // Overall Financial Totals
   const totalRaisedEth = (campaigns || [])
     .reduce((s, c) => s + parseFloat(c.currentAmount || 0), 0)
-    .toFixed(4);
+    .toFixed(6);
   const totalRaisedPhp = Math.round(parseFloat(totalRaisedEth || 0) * 170000);
   const activeCampaigns = (campaigns || []).filter((c) => c.isActive).length;
   const concludedCampaigns = (campaigns || []).length - activeCampaigns;
@@ -3423,9 +3410,9 @@ export default function AdminView({
                       {[
                         { key: 'ALL', label: `All (${allUnifiedLedgerList.length})` },
                         { key: 'NOTARIZED', label: `On-Chain (${ledgerData.onChain.length})` },
-                        { key: 'GCASH', label: `GCash (${pillRailCounts.gcash})` },
-                        { key: 'MAYA', label: `Maya (${pillRailCounts.maya})` },
-                        { key: 'CARD', label: `Card & Bank (${pillRailCounts.bank})` },
+                        { key: 'GCASH', label: 'GCash' },
+                        { key: 'MAYA', label: 'Maya' },
+                        { key: 'CARD', label: 'Card & Bank' },
                         ...(pendingManualCount > 0 ? [{ key: 'PENDING', label: `Pending (${pendingManualCount})` }] : [])
                       ].map(tab => (
                         <button
@@ -3451,8 +3438,8 @@ export default function AdminView({
                   </div>
 
                   {/* Right: Search Box + Sync */}
-                  <div className="toolbar-search-right">
-                    <div className="campaign-toolbar-search-box">
+                  <div className="toolbar-search-right" style={{ flexWrap: 'nowrap' }}>
+                    <div className="campaign-toolbar-search-box" style={{ width: '250px', minWidth: '170px', flex: '1 1 200px' }}>
                       <span className="material-symbols-outlined filter-search-icon-ref">search</span>
                       <input
                         type="text"

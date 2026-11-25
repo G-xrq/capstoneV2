@@ -8886,18 +8886,26 @@ app.get('/api/admin/financial-ledger', authenticateToken, async (req, res) => {
       LIMIT 1000
     `);
 
-    // Deduplicate: approved MANUAL_DONATION rows already inserted into DONATION_TRANSACTION must NOT be double-counted
+    // Canonical Single Source of Truth:
+    // DONATION_TRANSACTION (PHP_RAIL_SQL) is the authoritative ledger of all verified funds (matching Overview, Campaigns & Analytics).
+    // Approved MANUAL_DONATION rows are strictly receipt/audit metadata attached onto their canonical DONATION_TRANSACTION row
+    // and must NEVER be emitted as extra transactions (prevents double-counting legacy rows lacking Tx_Hash or Donor_ID).
     const onChainRows = (onChain || []).map(r => ({ ...r }));
     const onChainByHash = new Map();
     const onChainBySig = new Map();
+    const onChainByCampAmt = new Map();
     const matchedOnChainIds = new Set();
 
     for (const row of onChainRows) {
       const hashKey = String(row.txHash || '').trim().toLowerCase();
       if (hashKey) onChainByHash.set(hashKey, row);
-      const sigKey = `${row.campaignId || ''}|${String(row.donorEmail || '').toLowerCase()}|${Math.round(Number(row.amountPhp || 0))}`;
+      const roundedPhp = Math.round(Number(row.amountPhp || 0));
+      const sigKey = `${row.campaignId || ''}|${String(row.donorEmail || '').toLowerCase()}|${roundedPhp}`;
       if (!onChainBySig.has(sigKey)) onChainBySig.set(sigKey, []);
       onChainBySig.get(sigKey).push(row);
+      const campAmtKey = `${row.campaignId || ''}|${roundedPhp}`;
+      if (!onChainByCampAmt.has(campAmtKey)) onChainByCampAmt.set(campAmtKey, []);
+      onChainByCampAmt.get(campAmtKey).push(row);
     }
 
     const dedupedManual = [];
@@ -8907,21 +8915,27 @@ app.get('/api/admin/financial-ledger', authenticateToken, async (req, res) => {
         const mHash = String(m.txHash || '').trim().toLowerCase();
         let matchedRow = mHash ? onChainByHash.get(mHash) : null;
         if (!matchedRow) {
-          const sigKey = `${m.campaignId || ''}|${String(m.donorEmail || '').toLowerCase()}|${Math.round(Number(m.amountPhp || 0))}`;
+          const roundedPhp = Math.round(Number(m.amountPhp || 0));
+          const sigKey = `${m.campaignId || ''}|${String(m.donorEmail || '').toLowerCase()}|${roundedPhp}`;
           const candidates = onChainBySig.get(sigKey) || [];
           matchedRow = candidates.find(c => !matchedOnChainIds.has(c.id)) || null;
+          if (!matchedRow) {
+            const campAmtKey = `${m.campaignId || ''}|${roundedPhp}`;
+            const looseCandidates = onChainByCampAmt.get(campAmtKey) || [];
+            matchedRow = looseCandidates.find(c => !matchedOnChainIds.has(c.id)) || null;
+          }
         }
         if (matchedRow) {
           matchedOnChainIds.add(matchedRow.id);
-          // Attach receipt & OCR metadata onto the canonical on-chain row so admins can still inspect the slip
           if (!matchedRow.manualId) matchedRow.manualId = m.id;
           if (m.hasReceipt) matchedRow.hasReceipt = 1;
           if (!matchedRow.refNo && m.refNo) matchedRow.refNo = m.refNo;
           if (matchedRow.aiConfidence == null && m.aiConfidence != null) matchedRow.aiConfidence = m.aiConfidence;
           if (!matchedRow.aiStatus && m.aiStatus) matchedRow.aiStatus = m.aiStatus;
           if (!matchedRow.aiNotes && m.aiNotes) matchedRow.aiNotes = m.aiNotes;
-          continue;
         }
+        // Always skip emitting Approved MANUAL_DONATION rows as standalone ledger entries
+        continue;
       }
       dedupedManual.push(m);
     }
