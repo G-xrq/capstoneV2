@@ -5856,41 +5856,73 @@ app.post('/api/manual-donations/:id/:action', authenticateToken, async (req, res
         [record.Donor_ID, record.Org_ID, record.Campaign_ID, auditHash, finalEth, isAnon, record.Donor_Wallet || null, record.Payment_Method || 'Bank']
       );
 
-      // Notify donor that their donation was verified and confirmed by the NGO
+      // Notify donor (urgent discrepancy alert if NGO altered the credited amount; standard receipt if exact match)
+      const isShortage = hasVariance && variancePhp < 0;
+      const absDiff = Math.abs(variancePhp);
       if (record.Donor_Email) {
-        const varianceNote = hasVariance
-          ? ` [Audit Note: Declared ₱${declaredPhp.toLocaleString()} · Credited ₱${creditedPhp.toLocaleString()} (Variance: ${variancePhp < 0 ? '-' : '+'}₱${Math.abs(variancePhp).toLocaleString()})]`
-          : '';
+        const donorTitle = hasVariance
+          ? (isShortage
+              ? `Discrepancy Alert: Credited ₱${creditedPhp.toLocaleString()} Instead of ₱${declaredPhp.toLocaleString()} (-₱${absDiff.toLocaleString()} Shortage)`
+              : `Discrepancy Alert: Credited ₱${creditedPhp.toLocaleString()} Instead of ₱${declaredPhp.toLocaleString()} (+₱${absDiff.toLocaleString()} Over-Credit)`)
+          : `Donation Verified: ₱${creditedPhp.toLocaleString()} via ${record.Payment_Method}`;
+
+        const donorMessage = hasVariance
+          ? `ALERT: ${record.Org_Name || 'The NGO'} credited ₱${creditedPhp.toLocaleString()} for "${record.Campaign_Title}", which is ₱${absDiff.toLocaleString()} ${isShortage ? 'LESS' : 'MORE'} than your declared ₱${declaredPhp.toLocaleString()} via ${record.Payment_Method} (Ref: ${finalRef}). This ${isShortage ? 'shortage' : 'over-credit'} has been permanently flagged on Ethereum Sepolia. Open My Contributions to inspect the audit proof or file a formal dispute.`
+          : `${record.Org_Name || 'The NGO'} has verified and confirmed receipt of your contribution for "${record.Campaign_Title}". Amount Credited to Campaign: ₱${creditedPhp.toLocaleString()}. Transaction audited on the blockchain ledger (Ref: ${finalRef}).`;
 
         await sendNotificationToUser({
           userEmail: record.Donor_Email,
           role: 'donor',
-          type: 'DONATION',
-          title: hasVariance
-            ? `Donation Confirmed with Variance: ₱${parsedPhp.toLocaleString()} via ${record.Payment_Method}`
-            : `Donation Verified: ₱${parsedPhp.toLocaleString()} via ${record.Payment_Method}`,
-          message: `${record.Org_Name || 'The NGO'} has verified and confirmed receipt of your contribution for "${record.Campaign_Title}". Amount Credited to Campaign: ₱${parsedPhp.toLocaleString()}${varianceNote}. Transaction audited on the blockchain ledger (Ref: ${finalRef}).`,
+          type: hasVariance ? 'SECURITY' : 'DONATION',
+          title: donorTitle,
+          message: donorMessage,
           referenceId: auditHash,
-          referenceType: 'TRANSACTION',
-          link: `/#campaign-${record.Campaign_ID}`
+          referenceType: hasVariance ? 'DISPUTE' : 'TRANSACTION',
+          link: hasVariance ? '/donor?tab=receipts' : `/#campaign-${record.Campaign_ID}`
         });
+      }
+
+      // Automatically alert System Administrators whenever an NGO approves a donation with an amount variance
+      if (hasVariance) {
+        try {
+          const [admins] = await db.query('SELECT Username FROM ADMINISTRATOR LIMIT 5');
+          const adminEmails = (admins && admins.length > 0)
+            ? admins.map(a => a.Username).filter(Boolean)
+            : ['admin@bbdrts.gov.ph'];
+          for (const aEmail of adminEmails) {
+            await sendNotificationToUser({
+              userEmail: aEmail,
+              role: 'admin',
+              type: 'SECURITY',
+              title: `NGO Credit ${isShortage ? 'Shortage' : 'Over-Credit'} Flagged (${isShortage ? '-' : '+'}₱${absDiff.toLocaleString()})`,
+              message: `${record.Org_Name || 'An NGO'} credited ₱${creditedPhp.toLocaleString()} instead of donor's declared ₱${declaredPhp.toLocaleString()} on "${record.Campaign_Title}" (Ref: ${finalRef}). Permanently sealed on Sepolia (${String(auditHash).slice(0, 12)}...).`,
+              referenceId: auditHash,
+              referenceType: 'TRANSACTION',
+              link: '/admin?tab=finance'
+            });
+          }
+        } catch (_) {}
       }
 
       // Server-side audit logging
       logActivity({
         req,
-        activity: `${req.user.name || req.user.email} (${req.user.role === 'admin' ? 'Admin' : 'NGO'}) verified donation receipt #${record.Manual_ID} (₱${parsedPhp.toLocaleString()})`,
+        activity: hasVariance
+          ? `${req.user.name || req.user.email} (${req.user.role === 'admin' ? 'Admin' : 'NGO'}) credited ₱${creditedPhp.toLocaleString()} vs declared ₱${declaredPhp.toLocaleString()} on receipt #${record.Manual_ID} [${isShortage ? 'SHORTAGE' : 'OVER-CREDIT'}: ${isShortage ? '-' : '+'}₱${absDiff.toLocaleString()}]`
+          : `${req.user.name || req.user.email} (${req.user.role === 'admin' ? 'Admin' : 'NGO'}) verified donation receipt #${record.Manual_ID} (₱${creditedPhp.toLocaleString()})`,
         userName: req.user.name || req.user.email,
         userEmail: req.user.email,
         role: req.user.role === 'admin' ? 'ADMIN' : 'NGO',
-        target: `Donation #${record.Manual_ID}: ₱${parsedPhp.toLocaleString()}`,
-        category: 'DONATION',
-        status: 'SUCCESS',
+        target: `Donation #${record.Manual_ID}: ₱${creditedPhp.toLocaleString()}`,
+        category: hasVariance ? 'ADMIN_SECURITY' : 'DONATION',
+        status: hasVariance ? 'WARNING' : 'SUCCESS',
         details: {
           manualId: record.Manual_ID,
           campaign: record.Campaign_Title,
-          parsedPhp,
+          parsedPhp: creditedPhp,
           declaredPhp,
+          variancePhp,
+          hasVariance,
           txHash: auditHash,
           refNo: finalRef
         }
