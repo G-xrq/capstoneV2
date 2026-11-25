@@ -2454,10 +2454,12 @@ export default function OrganizationView({
       });
   }, [orgDonations, ledgerFilter, ledgerRailFilter, ledgerCampaignFilter, searchQueryLedger, ledgerSort, campaigns]);
 
-  const totalPagesLedger = Math.ceil(((filteredLedger || []).length) / campaignsPerPage);
+  const ledgerPerPage = 10;
+  const totalPagesLedger = Math.ceil(((filteredLedger || []).length) / ledgerPerPage);
+  const safeLedgerPage = Math.min(currentPageLedger, Math.max(1, totalPagesLedger));
   const paginatedLedger = (filteredLedger || []).slice(
-    (currentPageLedger - 1) * campaignsPerPage,
-    currentPageLedger * campaignsPerPage
+    (safeLedgerPage - 1) * ledgerPerPage,
+    safeLedgerPage * ledgerPerPage
   );
 
   const [ngoLedgerExportOpen, setNgoLedgerExportOpen] = useState(false);
@@ -7417,56 +7419,80 @@ export default function OrganizationView({
               </div>
             )}
 
-            {/* ── Centered Pagination Controls ── */}
-            {totalPagesLedger > 1 && (
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginTop: '24px',
-                padding: '12px 0',
-                flexWrap: 'wrap',
-                gap: '12px'
-              }}>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                  Showing {(currentPageLedger - 1) * campaignsPerPage + 1}–{Math.min(currentPageLedger * campaignsPerPage, (filteredLedger || []).length)} of {(filteredLedger || []).length} verified transactions
-                </div>
+            {/* ── Compact Windowed Pagination Controls (10 per page + Ellipsis) ── */}
+            {totalPagesLedger > 1 && (() => {
+              const compactPages = (() => {
+                if (totalPagesLedger <= 7) return Array.from({ length: totalPagesLedger }, (_, i) => i + 1);
+                if (safeLedgerPage <= 3) return [1, 2, 3, 4, 'right-ellipsis', totalPagesLedger];
+                if (safeLedgerPage >= totalPagesLedger - 2) return [1, 'left-ellipsis', totalPagesLedger - 3, totalPagesLedger - 2, totalPagesLedger - 1, totalPagesLedger];
+                return [1, 'left-ellipsis', safeLedgerPage - 1, safeLedgerPage, safeLedgerPage + 1, 'right-ellipsis', totalPagesLedger];
+              })();
+              const startRow = (safeLedgerPage - 1) * ledgerPerPage + 1;
+              const endRow = Math.min(safeLedgerPage * ledgerPerPage, (filteredLedger || []).length);
+              return (
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginTop: '20px',
+                  padding: '12px 0',
+                  flexWrap: 'wrap',
+                  gap: '12px'
+                }}>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>
+                    Showing {startRow}–{endRow} of {(filteredLedger || []).length} verified transactions
+                  </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm"
-                    onClick={() => setCurrentPageLedger(p => Math.max(1, p - 1))}
-                    disabled={currentPageLedger === 1}
-                    style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>chevron_left</span> Previous
-                  </button>
-
-                  {Array.from({ length: totalPagesLedger }, (_, i) => i + 1).map((pageNum) => (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
                     <button
-                      key={pageNum}
                       type="button"
-                      className={`btn btn-sm ${currentPageLedger === pageNum ? 'btn-primary' : 'btn-ghost'}`}
-                      onClick={() => setCurrentPageLedger(pageNum)}
-                      style={{ minWidth: '34px', height: '34px', borderRadius: '8px', fontWeight: currentPageLedger === pageNum ? 700 : 400 }}
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => setCurrentPageLedger(p => Math.max(1, p - 1))}
+                      disabled={safeLedgerPage === 1}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', height: '32px', padding: '0 10px' }}
                     >
-                      {pageNum}
+                      <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>chevron_left</span> Previous
                     </button>
-                  ))}
 
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm"
-                    onClick={() => setCurrentPageLedger(p => Math.min(totalPagesLedger, p + 1))}
-                    disabled={currentPageLedger === totalPagesLedger}
-                    style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
-                  >
-                    Next <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>chevron_right</span>
-                  </button>
+                    {compactPages.map((item) => {
+                      if (typeof item === 'string') {
+                        return (
+                          <span
+                            key={item}
+                            aria-hidden="true"
+                            style={{ minWidth: '28px', height: '32px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.82rem', userSelect: 'none' }}
+                          >
+                            …
+                          </span>
+                        );
+                      }
+                      const isCurr = safeLedgerPage === item;
+                      return (
+                        <button
+                          key={item}
+                          type="button"
+                          className={`btn btn-sm ${isCurr ? 'btn-primary' : 'btn-ghost'}`}
+                          onClick={() => setCurrentPageLedger(item)}
+                          style={{ minWidth: '32px', height: '32px', padding: '0 8px', borderRadius: '8px', fontWeight: isCurr ? 700 : 500, fontVariantNumeric: 'tabular-nums' }}
+                        >
+                          {item}
+                        </button>
+                      );
+                    })}
+
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => setCurrentPageLedger(p => Math.min(totalPagesLedger, p + 1))}
+                      disabled={safeLedgerPage === totalPagesLedger}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', height: '32px', padding: '0 10px' }}
+                    >
+                      Next <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>chevron_right</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
         )}
 
