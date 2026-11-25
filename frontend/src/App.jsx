@@ -7,6 +7,9 @@ import AuthView from './views/AuthView';
 import DonorView from './views/DonorView';
 import OrganizationView from './views/OrganizationView';
 import AdminView from './views/AdminView';
+import AdminPortalView from './views/AdminPortalView';
+
+const isAdminPath = (pathname = '') => /^\/admin(\/|$|-portal)/i.test(pathname);
 import SettingsPanel from './components/SettingsPanel';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -84,6 +87,39 @@ export default function App() {
   }); // Default to Landing Page, auto-open if reset/secure link!
   const [authMode, setAuthMode] = useState('login'); // 'login' | 'register'
   const [authRole, setAuthRole] = useState('donor'); // 'donor' | 'organization'
+  const [isAdminPortalRoute, setIsAdminPortalRoute] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return isAdminPath(window.location.pathname);
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const onPopState = () => {
+      setIsAdminPortalRoute(isAdminPath(window.location.pathname));
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  const openAdminPortal = useCallback(() => {
+    if (typeof window !== 'undefined' && !isAdminPath(window.location.pathname)) {
+      window.history.pushState({}, '', '/admin');
+    }
+    setShowAuth(false);
+    setIsAdminPortalRoute(true);
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, []);
+
+  const exitAdminPortal = useCallback(() => {
+    if (typeof window !== 'undefined' && isAdminPath(window.location.pathname)) {
+      window.history.pushState({}, '', '/');
+    }
+    setIsAdminPortalRoute(false);
+    setShowAuth(false);
+  }, []);
+
+  const isAdminAuthScreen = isAdminPortalRoute && String(dbUser?.role || '').toLowerCase() !== 'admin';
+  const hidePublicChrome = (!dbUser && showAuth) || isAdminAuthScreen;
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [presenceEventHint, setPresenceEventHint] = useState(null);
@@ -380,7 +416,7 @@ export default function App() {
   });
 
   // Dashboard customization ONLY applies when the signed-in user's dashboard itself is active (never AuthView, LandingView, Onboarding, or other users)
-  const isDashboardViewActive = Boolean(dbUser && !showAuth && !authTransition.active && !showOnboardingModal);
+  const isDashboardViewActive = Boolean(dbUser && !showAuth && !isAdminAuthScreen && !authTransition.active && !showOnboardingModal);
 
   const runInstantThemeSwitch = (cb) => {
     const css = document.createElement('style');
@@ -879,8 +915,12 @@ export default function App() {
         subtitle: 'Resetting public portal & unmounting views...'
       }));
       setDbUser(null);
-      setShowAuth(true);
-      setAuthMode('login');
+      if (isAdminPortalRoute) {
+        setShowAuth(false);
+      } else {
+        setShowAuth(true);
+        setAuthMode('login');
+      }
       fetchCampaigns(null).catch(() => null);
       await new Promise(r => setTimeout(r, 300));
 
@@ -912,7 +952,11 @@ export default function App() {
     } catch (err) {
       console.warn('Logout notice:', err);
       setDbUser(null);
-      setShowAuth(true);
+      if (isAdminPortalRoute) {
+        setShowAuth(false);
+      } else {
+        setShowAuth(true);
+      }
       setAuthTransition({
         active: false,
         closing: false,
@@ -1139,23 +1183,25 @@ export default function App() {
     <div className="app" data-theme={theme}>
 
       {/* ── Global Broadcast Announcement Banner (High Priority Alerts) ── */}
-      {!(!dbUser && showAuth) && (
+      {!hidePublicChrome && (
         <GlobalBroadcastBanner userRole={dbUser?.role || 'donor'} />
       )}
 
-      {/* ── System Maintenance Guard (Full Platform or Route Interceptor) ── */}
-      <MaintenanceGuardModal
-        userRole={uiRole}
-        activeView={
-          !dbUser
-            ? (showAuth ? 'auth' : 'landing')
-            : (uiRole === ROLES.ADMIN ? 'admin' : uiRole === ROLES.ORGANIZATION ? 'ngo' : 'donor')
-        }
-        dbUser={dbUser}
-      />
+      {/* ── System Maintenance Guard (Never blocks /admin login so admins can always recover) ── */}
+      {!isAdminAuthScreen && (
+        <MaintenanceGuardModal
+          userRole={uiRole}
+          activeView={
+            !dbUser
+              ? (showAuth ? 'auth' : 'landing')
+              : (uiRole === ROLES.ADMIN ? 'admin' : uiRole === ROLES.ORGANIZATION ? 'ngo' : 'donor')
+          }
+          dbUser={dbUser}
+        />
+      )}
 
       {/* ── Modern Institutional Header with Live Network Status & Profile Hub ── */}
-      {!(!dbUser && showAuth) && (
+      {!hidePublicChrome && (
         <Header
           dbUser={dbUser}
           handleLogout={handleLogout}
@@ -1171,8 +1217,19 @@ export default function App() {
       )}
 
       <ErrorBoundary>
+        {/* ── Dedicated Administrator Portal (/admin) ── */}
+        {isAdminAuthScreen && (
+          <AdminPortalView
+            onLoginSuccess={handleLoginSuccess}
+            onBack={exitAdminPortal}
+            theme={theme}
+            onToggleTheme={toggleTheme}
+            currentUser={dbUser}
+          />
+        )}
+
         {/* ── Unauthenticated Views: Default Landing Page vs Auth Portal ── */}
-        {!dbUser && !showAuth && (
+        {!isAdminAuthScreen && !dbUser && !showAuth && (
           <LandingView
             onConnect={(targetRole, targetMode) => {
               if (targetRole) setAuthRole(targetRole);
@@ -1195,7 +1252,7 @@ export default function App() {
           />
         )}
 
-        {!dbUser && showAuth && (
+        {!isAdminAuthScreen && !dbUser && showAuth && (
           <AuthView
             onLoginSuccess={handleLoginSuccess}
             onBack={() => setShowAuth(false)}
@@ -1207,7 +1264,7 @@ export default function App() {
         )}
 
         {/* ── Role-based Dashboards (Gasless On-Chain Audit Enabled) ── */}
-        {dbUser && (
+        {!isAdminAuthScreen && dbUser && (
           <div
             className="dashboard-enter-reveal"
             data-dashboard-role={uiRole}
@@ -1399,7 +1456,7 @@ export default function App() {
       )}
 
       {/* ── "ReliefAI" Humanitarian Relief Copilot Floating Assistant (Module C) ── */}
-      <ReliefAiChat
+      {!isAdminAuthScreen && <ReliefAiChat
         currentUser={dbUser}
         userRole={dbUser?.role || 'donor'}
         campaigns={campaigns}
@@ -1418,7 +1475,7 @@ export default function App() {
                 : (activeTabInfo?.section || activeTabInfo?.tab || 'Dashboard Overview')
         }
         activeTabMeta={activeTabInfo?.meta}
-      />
+      />}
 
       {/* ── Post-Signup BBDRTS Workspace Setup & Personalization ── */}
       {showOnboardingModal && (
@@ -1481,8 +1538,8 @@ export default function App() {
       )}
 
       {/* ── Modern Institutional 4-Column Mega Footer ── */}
-      {!(!dbUser && showAuth) && (
-        <Footer onNavigate={() => { }} theme={theme} toggleTheme={toggleTheme} />
+      {!hidePublicChrome && (
+        <Footer onNavigate={() => { }} onOpenAdminPortal={openAdminPortal} theme={theme} toggleTheme={toggleTheme} />
       )}
 
     </div>

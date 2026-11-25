@@ -63,7 +63,7 @@ const EMERGENCY_HOTLINES = [
   }
 ];
 
-export default function Footer({ onNavigate, theme, toggleTheme }) {
+export default function Footer({ onNavigate, onOpenAdminPortal, theme, toggleTheme }) {
   const [copied, setCopied] = useState(false);
   const [policyModal, setPolicyModal] = useState({ open: false, tab: 'accreditation' });
   const [legalModal, setLegalModal] = useState({ open: false, tab: 'agreement' });
@@ -305,6 +305,13 @@ export default function Footer({ onNavigate, theme, toggleTheme }) {
                   Anti-Fraud Policy
                 </button>
               </li>
+              {onOpenAdminPortal && (
+                <li>
+                  <button type="button" className="ftv-link" onClick={onOpenAdminPortal}>
+                    Admin Portal
+                  </button>
+                </li>
+              )}
             </ul>
           </div>
         </div>
