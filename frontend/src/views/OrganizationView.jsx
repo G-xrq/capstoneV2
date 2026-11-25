@@ -6720,12 +6720,12 @@ export default function OrganizationView({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              gap: '12px',
+              gap: '8px',
               flexWrap: 'wrap',
               marginBottom: '16px'
             }}>
               {/* Search input with sleek Vercel input styling */}
-              <div style={{ position: 'relative', width: '320px', maxWidth: '100%' }}>
+              <div style={{ position: 'relative', flex: '1 1 190px', minWidth: '170px', maxWidth: '300px' }}>
                 <span className="material-symbols-outlined" style={{
                   position: 'absolute',
                   left: '10px',
@@ -6781,7 +6781,7 @@ export default function OrganizationView({
                 {/* Category Dropdown */}
                 <GeistSelect
                   compact
-                  width="162px"
+                  width="148px"
                   menuMinWidth={240}
                   value={ledgerFilter}
                   onChange={(val) => { setLedgerFilter(val); setCurrentPageLedger(1); }}
@@ -6795,7 +6795,7 @@ export default function OrganizationView({
                 {/* Campaign Dropdown (Searchable + Full Titles & IDs) */}
                 <GeistSelect
                   compact
-                  width="210px"
+                  width="184px"
                   menuMinWidth={360}
                   searchable={(myCampaigns || []).length > 5}
                   searchPlaceholder="Search campaign by title, #ID, or location..."
@@ -6818,7 +6818,7 @@ export default function OrganizationView({
                 <GeistSelect
                   compact
                   alignRight
-                  width="156px"
+                  width="142px"
                   menuMinWidth={200}
                   value={ledgerSort}
                   onChange={(val) => setLedgerSort(val)}
