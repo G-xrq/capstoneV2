@@ -1111,7 +1111,7 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
                         <input
                           id="edit-contact"
                           type="text"
-                          placeholder="e.g. relief-operations@redcross.org.ph / (053) 832-1923"
+                          placeholder="e.g. relief-operations@redcross.org.ph / 0992 982 4615"
                           value={contactInfo}
                           onChange={(e) => setContactInfo(e.target.value)}
                         />

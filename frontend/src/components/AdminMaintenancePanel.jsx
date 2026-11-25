@@ -130,8 +130,8 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
     endTime: '',
     endTimeIso: '',
     contactPerson: 'Disaster Relief IT Support',
-    contactEmail: 'support@bbdrts.gov.ph',
-    contactPhone: '(053) 832-1923'
+    contactEmail: 'bbdrts@gmail.com',
+    contactPhone: '0992 982 4615'
   });
   const [savingMaintenance, setSavingMaintenance] = useState(false);
   const [liveNowMs, setLiveNowMs] = useState(() => Date.now());
@@ -1005,7 +1005,7 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
                       id="maint-email"
                       type="email"
                       className="clean-text-input"
-                      placeholder="support@bbdrts.gov.ph"
+                      placeholder="bbdrts@gmail.com"
                       value={maintenance.contactEmail}
                       onChange={e => setMaintenance(prev => ({ ...prev, contactEmail: e.target.value }))}
                     />
@@ -1017,7 +1017,7 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
                       id="maint-phone"
                       type="text"
                       className="clean-text-input"
-                      placeholder="(053) 832-1923"
+                      placeholder="0992 982 4615"
                       value={maintenance.contactPhone}
                       onChange={e => setMaintenance(prev => ({ ...prev, contactPhone: e.target.value }))}
                     />

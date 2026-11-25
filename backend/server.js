@@ -11288,8 +11288,8 @@ const DEFAULT_MAINTENANCE_CONFIG = {
   endTime: '',
   endTimeIso: '',
   contactPerson: 'Disaster Relief IT Support',
-  contactEmail: 'support@bbdrts.gov.ph',
-  contactPhone: '(053) 832-1923'
+  contactEmail: 'bbdrts@gmail.com',
+  contactPhone: '0992 982 4615'
 };
 
 function parseMaintenanceTimestampMs(isoVal, displayVal) {
@@ -11311,6 +11311,12 @@ function parseMaintenanceTimestampMs(isoVal, displayVal) {
  */
 function evaluateMaintenanceRuntime(rawConfig, nowMs = Date.now()) {
   const merged = { ...DEFAULT_MAINTENANCE_CONFIG, ...(rawConfig || {}) };
+  if (String(merged.contactEmail || '').trim().toLowerCase() === 'support@bbdrts.gov.ph') {
+    merged.contactEmail = 'bbdrts@gmail.com';
+  }
+  if (String(merged.contactPhone || '').trim() === '(053) 832-1923') {
+    merged.contactPhone = '0992 982 4615';
+  }
   const startMs = parseMaintenanceTimestampMs(merged.startTimeIso, merged.startTime);
   const endMs = parseMaintenanceTimestampMs(merged.endTimeIso, merged.endTime);
 
