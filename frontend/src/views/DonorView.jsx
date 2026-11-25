@@ -3493,7 +3493,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
           tx={disputeTarget.tx}
           campaignTitle={disputeTarget.campaignTitle}
           orgName={disputeTarget.orgName}
-          apiUrl={apiUrl}
+          apiUrl={API_URL}
           onClose={() => setDisputeTarget(null)}
           onSuccess={(data) => {
             showSuccess(data.message || 'Audit dispute filed with BBDRTS Governance.', 'Audit Dispute Filed');
