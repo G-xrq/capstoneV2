@@ -37,6 +37,7 @@
   animation: disbScaleUp 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   position: relative;
   color: #ededed;
+  color-scheme: dark;
   font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
 }
 
@@ -1614,4 +1615,577 @@
   max-height: 72vh;
   object-fit: contain;
   border-radius: 6px;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LIGHT THEME PARITY ([data-theme="light"])
+   Matches Vercel/Geist crisp institutional light surfaces across all 4 steps
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+[data-theme="light"] .bbdrts-disb-overlay {
+  background: rgba(15, 23, 42, 0.48) !important;
+}
+
+[data-theme="light"] .bbdrts-disb-modal {
+  background: #ffffff;
+  border-color: #e4e4e7;
+  color: #09090b;
+  color-scheme: light;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.16), 0 0 0 1px rgba(15, 23, 42, 0.05);
+}
+
+/* Header */
+[data-theme="light"] .bbdrts-disb-header {
+  background: #ffffff;
+  border-bottom-color: #e4e4e7;
+}
+
+[data-theme="light"] .bbdrts-disb-title {
+  color: #09090b;
+}
+
+[data-theme="light"] .bbdrts-disb-subtitle {
+  color: #52525b;
+}
+
+[data-theme="light"] .bbdrts-disb-close-btn {
+  color: #71717a;
+}
+
+[data-theme="light"] .bbdrts-disb-close-btn:hover {
+  background: #f4f4f5;
+  color: #09090b;
+  border-color: #e4e4e7;
+}
+
+/* Financial Escrow Summary Strip */
+[data-theme="light"] .bbdrts-disb-summary-strip {
+  background: #fafafa;
+  border-bottom-color: #e4e4e7;
+}
+
+[data-theme="light"] .bbdrts-disb-summary-col:not(:last-child) {
+  border-right-color: #e4e4e7;
+}
+
+[data-theme="light"] .bbdrts-disb-summary-col .label {
+  color: #71717a;
+}
+
+[data-theme="light"] .bbdrts-disb-summary-col .val {
+  color: #09090b;
+}
+
+[data-theme="light"] .bbdrts-disb-summary-col .val.title {
+  color: #18181b;
+}
+
+[data-theme="light"] .bbdrts-disb-summary-col .val.text-emerald {
+  color: #059669;
+}
+
+[data-theme="light"] .bbdrts-disb-summary-col .val.text-muted {
+  color: #71717a;
+}
+
+/* Stepper */
+[data-theme="light"] .bbdrts-disb-stepper {
+  background: #fafafa;
+  border-bottom-color: #e4e4e7;
+}
+
+[data-theme="light"] .bbdrts-disb-step-pill {
+  color: #71717a;
+}
+
+[data-theme="light"] .bbdrts-disb-step-pill.is-active {
+  background: #ffffff;
+  border-color: #d4d4d8;
+  color: #09090b;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+[data-theme="light"] .bbdrts-disb-step-pill.is-completed {
+  color: #059669;
+}
+
+[data-theme="light"] .bbdrts-disb-step-pill.is-completed:hover {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+}
+
+[data-theme="light"] .step-circle {
+  background: #f4f4f5;
+  border-color: #d4d4d8;
+  color: #71717a;
+}
+
+[data-theme="light"] .bbdrts-disb-step-pill.is-active .step-circle {
+  background: #09090b;
+  border-color: #09090b;
+  color: #ffffff;
+}
+
+[data-theme="light"] .bbdrts-disb-step-pill.is-completed .step-circle {
+  background: #ecfdf5;
+  border-color: #059669;
+  color: #059669;
+}
+
+/* Wizard Form & Scrollbar */
+[data-theme="light"] .bbdrts-disb-form {
+  background: #ffffff;
+}
+
+[data-theme="light"] .bbdrts-disb-scroll-body::-webkit-scrollbar-thumb {
+  background: #d4d4d8;
+}
+
+[data-theme="light"] .bbdrts-disb-scroll-body::-webkit-scrollbar-thumb:hover {
+  background: #a1a1aa;
+}
+
+[data-theme="light"] .bbdrts-step-heading {
+  color: #09090b;
+}
+
+[data-theme="light"] .bbdrts-step-desc {
+  color: #52525b;
+}
+
+[data-theme="light"] .bbdrts-step-desc strong {
+  color: #09090b;
+}
+
+/* Mode Tabs */
+[data-theme="light"] .bbdrts-disb-mode-tabs {
+  background: #f4f4f5;
+  border-color: #e4e4e7;
+}
+
+[data-theme="light"] .bbdrts-disb-tab-btn {
+  color: #52525b;
+}
+
+[data-theme="light"] .bbdrts-disb-tab-btn:hover {
+  color: #09090b;
+  background: rgba(255, 255, 255, 0.65);
+}
+
+[data-theme="light"] .bbdrts-disb-tab-btn.active {
+  background: #ffffff;
+  color: #09090b;
+  border-color: #d4d4d8;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+[data-theme="light"] .bbdrts-disb-count-tag {
+  background: #059669;
+  color: #ffffff;
+}
+
+/* Fields, Inputs, Selects, Textareas */
+[data-theme="light"] .bbdrts-disb-field label {
+  color: #18181b;
+}
+
+[data-theme="light"] .bbdrts-disb-field .hint {
+  color: #71717a;
+}
+
+[data-theme="light"] .bbdrts-disb-field .hint strong {
+  color: #09090b;
+}
+
+[data-theme="light"] .bbdrts-disb-field .hint-error {
+  color: #dc2626;
+}
+
+[data-theme="light"] .bbdrts-disb-input-wrap,
+[data-theme="light"] .bbdrts-disb-select-wrap,
+[data-theme="light"] .bbdrts-disb-field textarea {
+  background: #ffffff;
+  border-color: #d4d4d8;
+  color: #09090b;
+}
+
+[data-theme="light"] .bbdrts-disb-input-wrap:focus-within,
+[data-theme="light"] .bbdrts-disb-select-wrap:focus-within,
+[data-theme="light"] .bbdrts-disb-field textarea:focus {
+  border-color: #09090b;
+  box-shadow: 0 0 0 1px #09090b;
+}
+
+[data-theme="light"] .bbdrts-disb-input-wrap input,
+[data-theme="light"] .bbdrts-disb-select-wrap select {
+  color: #09090b;
+}
+
+[data-theme="light"] .bbdrts-disb-input-wrap input::placeholder,
+[data-theme="light"] .bbdrts-disb-field textarea::placeholder {
+  color: #a1a1aa;
+}
+
+[data-theme="light"] .bbdrts-disb-select-wrap select option {
+  background: #ffffff;
+  color: #09090b;
+}
+
+/* Quick Allocate Presets */
+[data-theme="light"] .bbdrts-disb-presets-row button {
+  background: #fafafa;
+  border-color: #e4e4e7;
+  color: #3f3f46;
+}
+
+[data-theme="light"] .bbdrts-disb-presets-row button:hover {
+  background: #f4f4f5;
+  border-color: #a1a1aa;
+  color: #09090b;
+}
+
+/* Step 1: Escrow Balance Math Card */
+[data-theme="light"] .bbdrts-escrow-balance-card {
+  background: #fafafa;
+  border-color: #e4e4e7;
+}
+
+[data-theme="light"] .calc-lbl {
+  color: #71717a;
+}
+
+[data-theme="light"] .calc-val {
+  color: #09090b;
+}
+
+[data-theme="light"] .calc-val.text-emerald {
+  color: #059669;
+}
+
+[data-theme="light"] .calc-math {
+  color: #a1a1aa;
+}
+
+/* Itemized Procurement Box & Table */
+[data-theme="light"] .bbdrts-disb-itemized-box {
+  background: #fafafa;
+  border-color: #e4e4e7;
+}
+
+[data-theme="light"] .bbdrts-disb-itemized-title {
+  color: #09090b;
+}
+
+[data-theme="light"] .bbdrts-disb-btn-excel {
+  background: #ffffff;
+  border-color: #d4d4d8;
+  color: #059669;
+}
+
+[data-theme="light"] .bbdrts-disb-btn-excel:hover {
+  background: #ecfdf5;
+  border-color: #059669;
+}
+
+[data-theme="light"] .bbdrts-disb-btn-add-item {
+  background: #ffffff;
+  border-color: #d4d4d8;
+  color: #18181b;
+}
+
+[data-theme="light"] .bbdrts-disb-btn-add-item:hover {
+  background: #f4f4f5;
+  border-color: #a1a1aa;
+  color: #09090b;
+}
+
+[data-theme="light"] .bbdrts-disb-excel-banner {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #047857;
+}
+
+[data-theme="light"] .bbdrts-disb-table-wrap {
+  background: #ffffff;
+  border-color: #e4e4e7;
+}
+
+[data-theme="light"] .bbdrts-disb-table-header {
+  background: #f4f4f5;
+  border-bottom-color: #e4e4e7;
+  color: #52525b;
+}
+
+[data-theme="light"] .bbdrts-disb-table-row {
+  border-bottom-color: #f4f4f5;
+}
+
+[data-theme="light"] .bbdrts-disb-table-row input,
+[data-theme="light"] .bbdrts-disb-mini-input {
+  background: #ffffff;
+  border-color: #d4d4d8;
+  color: #09090b;
+}
+
+[data-theme="light"] .bbdrts-disb-table-row input:focus,
+[data-theme="light"] .bbdrts-disb-mini-input:focus-within {
+  border-color: #09090b;
+}
+
+[data-theme="light"] .bbdrts-disb-total-line {
+  color: #52525b;
+}
+
+/* Step 3: Privacy Notice, Dropzone & Proofs */
+[data-theme="light"] .bbdrts-privacy-notice-box {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+}
+
+[data-theme="light"] .privacy-notice-header,
+[data-theme="light"] .bbdrts-faceblur-toggle {
+  color: #047857;
+}
+
+[data-theme="light"] .bbdrts-privacy-notice-box p {
+  color: #3f3f46;
+}
+
+[data-theme="light"] .bbdrts-privacy-notice-box code {
+  background: rgba(5, 150, 105, 0.12);
+  color: #065f46;
+}
+
+[data-theme="light"] .bbdrts-faceblur-toggle .toggle-track {
+  background: #e4e4e7;
+  border-color: #d4d4d8;
+}
+
+[data-theme="light"] .bbdrts-faceblur-toggle .toggle-thumb {
+  background: #ffffff;
+}
+
+[data-theme="light"] .bbdrts-disb-dropzone {
+  background: #fafafa;
+  border-color: #d4d4d8;
+}
+
+[data-theme="light"] .bbdrts-disb-dropzone:hover {
+  background: #f4f4f5;
+  border-color: #a1a1aa;
+}
+
+[data-theme="light"] .bbdrts-disb-dropzone.is-dragging {
+  border-color: #059669;
+  background: #ecfdf5;
+}
+
+[data-theme="light"] .bbdrts-disb-drop-icon {
+  background: #ffffff;
+  border-color: #e4e4e7;
+  color: #52525b;
+}
+
+[data-theme="light"] .bbdrts-disb-drop-text strong {
+  color: #09090b;
+}
+
+[data-theme="light"] .proofs-list-header {
+  color: #18181b;
+}
+
+[data-theme="light"] .bbdrts-disb-proof-item {
+  background: #fafafa;
+  border-color: #e4e4e7;
+}
+
+[data-theme="light"] .bbdrts-disb-proof-thumb {
+  background: #f4f4f5;
+}
+
+[data-theme="light"] .bbdrts-disb-proof-info .proof-name,
+[data-theme="light"] .bbdrts-disb-proof-caption-input {
+  color: #09090b;
+}
+
+[data-theme="light"] .bbdrts-disb-proof-caption-input:hover {
+  border-color: #d4d4d8;
+  background: #ffffff;
+}
+
+[data-theme="light"] .bbdrts-disb-proof-caption-input:focus {
+  border-color: #059669;
+  background: #ffffff;
+}
+
+[data-theme="light"] .bbdrts-disb-proof-cat-select {
+  background: #ffffff;
+  border-color: #d4d4d8;
+  color: #18181b;
+}
+
+[data-theme="light"] .proof-privacy-pill.is-protected {
+  background: #ecfdf5;
+  color: #047857;
+  border-color: #a7f3d0;
+}
+
+[data-theme="light"] .proof-privacy-pill.is-paused {
+  background: #fffbeb;
+  color: #b45309;
+  border-color: #fde68a;
+}
+
+[data-theme="light"] .proof-privacy-pill.is-scanning {
+  background: #f0f9ff;
+  color: #0369a1;
+  border-color: #bae6fd;
+}
+
+[data-theme="light"] .proof-privacy-action {
+  color: #52525b;
+}
+
+[data-theme="light"] .proof-privacy-action:hover {
+  color: #09090b;
+}
+
+[data-theme="light"] .bbdrts-proofs-empty-notice {
+  background: #fffbeb;
+  border-color: #fde68a;
+  color: #92400e;
+}
+
+/* Step 4: Review Screen */
+[data-theme="light"] .bbdrts-review-card {
+  background: #fafafa;
+  border-color: #e4e4e7;
+}
+
+[data-theme="light"] .review-card-val {
+  color: #09090b;
+}
+
+[data-theme="light"] .review-card-val.text-emerald {
+  color: #059669;
+}
+
+[data-theme="light"] .review-card-sub {
+  color: #52525b;
+}
+
+[data-theme="light"] .review-location-chip {
+  background: #fafafa;
+  border-color: #e4e4e7;
+  color: #09090b;
+}
+
+[data-theme="light"] .review-narrative-quote {
+  background: #fafafa;
+  border-left-color: #059669;
+  color: #27272a;
+}
+
+[data-theme="light"] .review-item-chip,
+[data-theme="light"] .review-proof-pill {
+  background: #fafafa;
+  border-color: #e4e4e7;
+  color: #18181b;
+}
+
+[data-theme="light"] .review-item-chip .chip-cost,
+[data-theme="light"] .review-proof-pill .pill-tag {
+  color: #059669;
+}
+
+[data-theme="light"] .bbdrts-blockchain-notice-box {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+}
+
+[data-theme="light"] .bbdrts-blockchain-notice-box .notice-body strong {
+  color: #047857;
+}
+
+[data-theme="light"] .bbdrts-blockchain-notice-box .notice-body p {
+  color: #3f3f46;
+}
+
+/* Sticky Footer */
+[data-theme="light"] .bbdrts-disb-footer {
+  background: #ffffff;
+  border-top-color: #e4e4e7;
+  box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.06);
+}
+
+[data-theme="light"] .bbdrts-disb-footer-releasing {
+  color: #52525b;
+}
+
+[data-theme="light"] .bbdrts-disb-footer-releasing .amt {
+  color: #059669;
+}
+
+[data-theme="light"] .bbdrts-disb-btn-cancel,
+[data-theme="light"] .bbdrts-disb-btn-back {
+  background: #ffffff;
+  border-color: #d4d4d8;
+  color: #18181b;
+}
+
+[data-theme="light"] .bbdrts-disb-btn-cancel:hover,
+[data-theme="light"] .bbdrts-disb-btn-back:hover {
+  background: #f4f4f5;
+  border-color: #a1a1aa;
+  color: #09090b;
+}
+
+[data-theme="light"] .bbdrts-disb-btn-next {
+  background: #09090b !important;
+  color: #ffffff !important;
+  border-color: #09090b !important;
+}
+
+[data-theme="light"] .bbdrts-disb-btn-next:hover:not(:disabled) {
+  background: #27272a !important;
+  border-color: #27272a !important;
+}
+
+[data-theme="light"] .bbdrts-disb-btn-confirm {
+  background: #059669 !important;
+  color: #ffffff !important;
+  border-color: #059669 !important;
+}
+
+[data-theme="light"] .bbdrts-disb-btn-confirm:hover:not(:disabled) {
+  background: #047857 !important;
+  border-color: #047857 !important;
+}
+
+/* Proof Preview Lightbox */
+[data-theme="light"] .bbdrts-disb-preview-overlay {
+  background: rgba(15, 23, 42, 0.56);
+}
+
+[data-theme="light"] .bbdrts-disb-preview-card {
+  background: #ffffff;
+  border-color: #e4e4e7;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22);
+}
+
+[data-theme="light"] .bbdrts-disb-preview-head {
+  border-bottom-color: #e4e4e7;
+}
+
+[data-theme="light"] .bbdrts-disb-preview-head strong {
+  color: #09090b;
+}
+
+[data-theme="light"] .bbdrts-disb-preview-head span {
+  color: #059669;
+}
+
+[data-theme="light"] .bbdrts-disb-preview-img-wrap {
+  background: #f4f4f5;
 }
