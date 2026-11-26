@@ -471,6 +471,10 @@
   gap: 14px;
 }
 
+.bbdrts-proof-detail > * {
+  flex-shrink: 0;
+}
+
 .proof-detail-head {
   display: flex;
   align-items: center;
@@ -698,6 +702,7 @@
   border: 1px solid var(--border, #242428);
   border-radius: 10px;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .bbdrts-proof-modal[data-theme="light"] .proof-expense-table-wrap {
