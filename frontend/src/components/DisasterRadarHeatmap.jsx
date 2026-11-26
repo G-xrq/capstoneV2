@@ -3986,10 +3986,9 @@ function DisasterRadarHeatmapInner({
 
             // Real donors from blockchain and database multi-rail breakdown
             const realDonors = camp.totalBackers
-              ?? camp.railBreakdown?.totalBackers
-              ?? (((camp.railBreakdown?.eth?.count || 0) + (camp.railBreakdown?.gcash?.count || 0) + (camp.railBreakdown?.maya?.count || 0) + (camp.railBreakdown?.bank?.count || 0)) || null)
               ?? camp.donorsCount
               ?? camp.donorCount
+              ?? camp.railBreakdown?.totalBackers
               ?? (raised > 0 ? 1 : 0);
             const donorsCount = typeof realDonors === 'number' ? realDonors : (parseInt(realDonors, 10) || 0);
 

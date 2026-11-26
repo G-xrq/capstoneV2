@@ -7137,7 +7137,7 @@ async function loadCampaignsFromDb() {
 
     let txRows = [];
     try {
-      const [txs] = await db.query(`SELECT Campaign_ID, Tx_Hash, Amount, Payment_Method FROM DONATION_TRANSACTION dt WHERE ${PHP_RAIL_SQL('dt')}`);
+      const [txs] = await db.query(`SELECT Transaction_ID, Campaign_ID, Donor_ID, Wallet_Address, Is_Anonymous, Tx_Hash, Amount, Payment_Method FROM DONATION_TRANSACTION dt WHERE ${PHP_RAIL_SQL('dt')}`);
       txRows = txs || [];
     } catch (_) {}
 
@@ -7151,13 +7151,31 @@ async function loadCampaignsFromDb() {
             gcashAmount: 0, gcashCount: 0,
             mayaAmount: 0, mayaCount: 0,
             bankAmount: 0, bankCount: 0,
-            totalBackers: 0
+            totalDonations: 0,
+            uniqueDonors: new Set()
           };
         }
         const amt = parseFloat(tx.Amount) || 0;
         const hash = (tx.Tx_Hash || '').toUpperCase();
         const pMethod = (tx.Payment_Method || '').toUpperCase();
-        txByCampaign[cId].totalBackers++;
+        txByCampaign[cId].totalDonations++;
+
+        // Deduplicate unique contributors identically to CampaignCard ledgerTelemetry
+        const isAnon = Boolean(tx.Is_Anonymous);
+        const cleanWallet = String(tx.Wallet_Address || '').trim().toLowerCase();
+        const hasRealWallet = Boolean(cleanWallet && cleanWallet !== '0x0000000000000000000000000000000000000000');
+        const isGuest = !tx.Donor_ID && !hasRealWallet;
+        let donorKey;
+        if (isAnon) {
+          donorKey = `anon_${tx.Tx_Hash || tx.Transaction_ID}`;
+        } else if (isGuest) {
+          donorKey = `guest_${tx.Tx_Hash || tx.Transaction_ID}`;
+        } else if (tx.Donor_ID) {
+          donorKey = `id_${tx.Donor_ID}`;
+        } else {
+          donorKey = `w_${cleanWallet}`;
+        }
+        txByCampaign[cId].uniqueDonors.add(donorKey);
 
         if (pMethod.includes('GCASH') || hash.startsWith('FIAT-GCAS') || hash.includes('GCASH')) {
           txByCampaign[cId].gcashAmount += amt;
@@ -7178,8 +7196,10 @@ async function loadCampaignsFromDb() {
         gcashAmount: 0, gcashCount: 0,
         mayaAmount: 0, mayaCount: 0,
         bankAmount: 0, bankCount: 0,
-        totalBackers: 0
+        totalDonations: 0,
+        uniqueDonors: new Set()
       };
+      const uniqueDonorCount = b.uniqueDonors ? b.uniqueDonors.size : 0;
 
       const currentEth = Number(r.currentAmount) > 0 ? Number(r.currentAmount) : 0;
       const trackedSum = b.ethAmount + b.gcashAmount + b.mayaAmount + b.bankAmount;
@@ -7254,8 +7274,9 @@ async function loadCampaignsFromDb() {
         disbursedAmountEth: parseFloat(r.disbursedAmountEth || 0),
         disbursementStatus: r.disbursementStatus || 'FUNDRAISING',
         lastDisbursementAt: r.lastDisbursementAt || null,
-        totalBackers: b.totalBackers || (currentEth > 0 ? 1 : 0),
-        donorsCount: b.totalBackers || (currentEth > 0 ? 1 : 0),
+        totalBackers: uniqueDonorCount || (currentEth > 0 ? 1 : 0),
+        donorsCount: uniqueDonorCount || (currentEth > 0 ? 1 : 0),
+        donationCount: b.totalDonations || (currentEth > 0 ? 1 : 0),
         railBreakdown: {
           eth: {
             amount: parseFloat(finalEthAmount.toFixed(6)),
@@ -7279,7 +7300,8 @@ async function loadCampaignsFromDb() {
           },
           totalRaisedEth: parseFloat(currentEth.toFixed(6)),
           totalRaisedPhp: Math.round(currentEth * 170000),
-          totalBackers: b.totalBackers || (currentEth > 0 ? 1 : 0)
+          totalBackers: uniqueDonorCount || (currentEth > 0 ? 1 : 0),
+          totalDonations: b.totalDonations || (currentEth > 0 ? 1 : 0)
         }
       };
     });
@@ -10768,7 +10790,15 @@ app.get('/api/public/organizations/:id', async (req, res) => {
       FROM CAMPAIGN c
       JOIN ORGANIZATION o ON c.Org_ID = o.Org_ID
       LEFT JOIN (
-        SELECT Campaign_ID, SUM(Amount) as totalDonationAmount, COUNT(*) as donorsCount
+        SELECT
+          Campaign_ID,
+          SUM(Amount) as totalDonationAmount,
+          COUNT(DISTINCT CASE
+            WHEN Is_Anonymous = 1 THEN CONCAT('anon_', COALESCE(NULLIF(Tx_Hash, ''), Transaction_ID))
+            WHEN Donor_ID IS NOT NULL THEN CONCAT('id_', Donor_ID)
+            WHEN Wallet_Address IS NOT NULL AND Wallet_Address != '' AND Wallet_Address != '0x0000000000000000000000000000000000000000' THEN LOWER(Wallet_Address)
+            ELSE CONCAT('guest_', COALESCE(NULLIF(Tx_Hash, ''), Transaction_ID))
+          END) as donorsCount
         FROM DONATION_TRANSACTION dt_sub
         WHERE ${PHP_RAIL_SQL('dt_sub')}
         GROUP BY Campaign_ID

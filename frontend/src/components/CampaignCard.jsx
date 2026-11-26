@@ -1979,10 +1979,24 @@ export default function CampaignCard(props) {
         if (bankCnt === 0 && (!history || history.length === 0)) bankCnt = 1;
       }
 
-      // Exact count of actual ledger donations
-      const exactBackers = (history && history.length > 0)
-        ? history.length 
-        : (ethCnt + gcashCnt + mayaCnt + bankCnt);
+      // Unique donor count matching ledgerTelemetry identity deduplication
+      const uniqueDonorKeys = new Set();
+      history.forEach((rec, idx) => {
+        const isGuest = Boolean(rec.isGuest || (!rec.donorId && (!rec.wallet || rec.wallet === '' || rec.wallet === '0x0000000000000000000000000000000000000000')));
+        if (rec.isAnonymous) {
+          uniqueDonorKeys.add(`anon_${rec.txHash || idx}`);
+        } else if (isGuest) {
+          uniqueDonorKeys.add(`guest_${rec.txHash || idx}`);
+        } else if (rec.donorId) {
+          uniqueDonorKeys.add(`id_${rec.donorId}`);
+        } else if (rec.wallet && rec.wallet !== '0x0000000000000000000000000000000000000000') {
+          uniqueDonorKeys.add(rec.wallet.toLowerCase());
+        } else if (rec.donor && rec.donor !== 'Anonymous' && rec.donor !== 'Guest Donor') {
+          uniqueDonorKeys.add(rec.donor.toLowerCase());
+        } else {
+          uniqueDonorKeys.add(`donor_${rec.txHash || idx}`);
+        }
+      });
 
       return {
         eth: { amount: ethAmt, php: Math.round(ethAmt * 170000), count: ethCnt },
@@ -1991,22 +2005,26 @@ export default function CampaignCard(props) {
         bank: { amount: bankAmt, php: Math.round(bankAmt * 170000), count: bankCnt },
         totalRaisedEth: Math.max(totalTracked, currentEth),
         totalRaisedPhp: Math.round(Math.max(totalTracked, currentEth) * 170000),
-        totalBackers: exactBackers
+        totalBackers: uniqueDonorKeys.size,
+        totalDonations: history.length
       };
     }
 
     // 2. If camp.railBreakdown is provided by API
     if (camp.railBreakdown && typeof camp.railBreakdown === 'object') {
       const apiBackers = camp.totalBackers ?? camp.donorsCount ?? camp.railBreakdown.totalBackers ?? (parseFloat(camp.currentAmount || 0) > 0 ? 1 : 0);
+      const apiDonations = camp.donationCount ?? camp.railBreakdown.totalDonations ?? apiBackers;
       return {
         ...camp.railBreakdown,
-        totalBackers: apiBackers
+        totalBackers: apiBackers,
+        totalDonations: apiDonations
       };
     }
 
     // 3. Fallback
     const currentEth = parseFloat(camp.currentAmount || 0);
     const apiBackers = camp.totalBackers ?? camp.donorsCount ?? (currentEth > 0 ? 1 : 0);
+    const apiDonations = camp.donationCount ?? apiBackers;
     return {
       eth: { amount: 0, php: 0, count: 0 },
       gcash: { amount: 0, php: 0, count: 0 },
@@ -2014,9 +2032,10 @@ export default function CampaignCard(props) {
       bank: { amount: currentEth, php: Math.round(currentEth * 170000), count: apiBackers > 0 ? 1 : 0 },
       totalRaisedEth: currentEth,
       totalRaisedPhp: Math.round(currentEth * 170000),
-      totalBackers: apiBackers
+      totalBackers: apiBackers,
+      totalDonations: apiDonations
     };
-  }, [camp.railBreakdown, camp.currentAmount, history]);
+  }, [camp.railBreakdown, camp.currentAmount, camp.totalBackers, camp.donorsCount, camp.donationCount, history]);
 
   const totalRailRaised = (parseFloat(breakdown?.eth?.amount || 0)) + 
                           (parseFloat(breakdown?.gcash?.amount || 0)) + 
@@ -3706,6 +3725,7 @@ export default function CampaignCard(props) {
           {/* Sleek, Non-redundant Metadata Strip */}
           {(() => {
             const totalBackers = breakdown?.totalBackers || 0;
+            const totalDonations = breakdown?.totalDonations ?? totalBackers;
             const audit = getCampaignAuditDetails(camp.id, camp.title, camp);
             const shortBeneficiaries = audit?.beneficiaries 
               ? audit.beneficiaries.split('(')[0].replace(/\s*\/\s*approx.*$/i, '').trim() 
@@ -3717,7 +3737,7 @@ export default function CampaignCard(props) {
                     className="campaign-meta-pill"
                     style={{ cursor: 'pointer' }}
                     onClick={() => setShowRailTelemetry(prev => !prev)}
-                    title={`Click to view payment breakdown (${totalBackers} total contributors)`}
+                    title={`${totalBackers} unique ${totalBackers === 1 ? 'donor' : 'donors'} (${totalDonations} ${totalDonations === 1 ? 'donation' : 'donations'}) — Click to view payment breakdown`}
                   >
                     <span className="material-symbols-outlined">group</span>
                     <span><strong>{totalBackers}</strong> {totalBackers === 1 ? 'donor' : 'donors'}</span>
@@ -4219,7 +4239,7 @@ export default function CampaignCard(props) {
                 <div className="ledger-kpi-data">
                   <span className="ledger-kpi-label">Recorded Transactions</span>
                   <div className="ledger-kpi-value-row">
-                    <span className="ledger-kpi-primary-val">{ledgerTelemetry.onchainCount + ledgerTelemetry.gatewayCount} Receipts</span>
+                    <span className="ledger-kpi-primary-val">{ledgerTelemetry.onchainCount + ledgerTelemetry.gatewayCount} {(ledgerTelemetry.onchainCount + ledgerTelemetry.gatewayCount) === 1 ? 'Receipt' : 'Receipts'}</span>
                     <span className="ledger-kpi-badge-val">
                       100% Verified &amp; Notarized
                     </span>
@@ -4234,7 +4254,7 @@ export default function CampaignCard(props) {
                 <div className="ledger-kpi-data">
                   <span className="ledger-kpi-label">Community Contributors</span>
                   <div className="ledger-kpi-value-row">
-                    <span className="ledger-kpi-primary-val">{ledgerTelemetry.uniqueDonors} Donors</span>
+                    <span className="ledger-kpi-primary-val">{ledgerTelemetry.uniqueDonors} {ledgerTelemetry.uniqueDonors === 1 ? 'Donor' : 'Donors'}</span>
                     <span className="ledger-kpi-badge-val">
                       {ledgerTelemetry.namedCount} Verified · {ledgerTelemetry.guestCount} Guest · {ledgerTelemetry.anonCount} Anon
                     </span>
