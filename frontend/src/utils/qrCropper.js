@@ -428,7 +428,19 @@ export async function extractQrVoucherText(imageOrResult) {
         text.match(/(?:Mobile\s*No\.?|Number)[\s:.]*(\+?[0-9*•●·\s.-]{9,20})/i) ||
         text.match(/\b((?:\+?63\s*9|09)\d{2}[\s.-]?\d{3}[\s.-]?[\d*•●·]{4})\b/);
       if (phoneMatch) {
-        detectedNumber = phoneMatch[1].replace(/[•●·]/g, '*').replace(/\s+/g, ' ').trim();
+        let rawNum = phoneMatch[1].replace(/[•●·]/g, '*').replace(/\s+/g, ' ').trim();
+        if (!/\*/.test(rawNum)) {
+          let digits = rawNum.replace(/\D/g, '');
+          if (digits.startsWith('639') && digits.length >= 12) {
+            digits = '0' + digits.slice(2, 12);
+          } else if (digits.length === 10 && digits.startsWith('9')) {
+            digits = '0' + digits;
+          }
+          if (digits.length === 11 && digits.startsWith('09')) {
+            rawNum = `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}`;
+          }
+        }
+        detectedNumber = rawNum;
       }
 
       // If EMVCo Tag 59 didn't already give us the recipient name, parse from OCR lines (including wrapped 2nd line initials like "S.")

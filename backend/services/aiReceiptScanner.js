@@ -260,7 +260,13 @@ function phonesMatch(extractedPhone, expectedPhone) {
     const sufExt = sufExtMatch[1];
     const sufExp = sufExpMatch[1];
     const minSuf = Math.min(sufExt.length, sufExp.length);
-    if (minSuf >= 3 && sufExt.slice(-minSuf) !== sufExp.slice(-minSuf)) {
+    const isLegacyTruncated639 = !isExpMasked && /^639\d{8}$/.test(rawExp.replace(/\D/g, ''));
+    const legacyOverlapMatch =
+      isLegacyTruncated639 &&
+      sufExt.length === 4 &&
+      sufExp.length >= 3 &&
+      sufExp.slice(-3) === sufExt.slice(0, 3);
+    if (!legacyOverlapMatch && minSuf >= 3 && sufExt.slice(-minSuf) !== sufExp.slice(-minSuf)) {
       return false; // Trailing digits mismatch (e.g. 1638 !== 9521)
     }
   }
