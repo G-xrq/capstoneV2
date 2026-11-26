@@ -335,14 +335,15 @@ export default function AdminPortalView({
                     </div>
                   </div>
 
-                  <div className="form-options-row">
-                    <label className="checkbox-modern">
+                  <div className="login-options">
+                    <label className="custom-checkbox">
                       <input
                         type="checkbox"
                         checked={rememberMe}
                         onChange={(e) => setRememberMe(e.target.checked)}
                       />
-                      <span>Keep me signed in</span>
+                      <span className="checkbox-mark"></span>
+                      <span className="checkbox-label">Remember me</span>
                     </label>
                     <button
                       type="button"
@@ -410,14 +411,15 @@ export default function AdminPortalView({
                     </div>
                   )}
 
-                  <div className="form-options-row">
-                    <label className="checkbox-modern">
+                  <div className="login-options">
+                    <label className="custom-checkbox">
                       <input
                         type="checkbox"
                         checked={twoFactorTrustDevice}
                         onChange={(e) => setTwoFactorTrustDevice(e.target.checked)}
                       />
-                      <span>Trust this device for 30 days</span>
+                      <span className="checkbox-mark"></span>
+                      <span className="checkbox-label">Trust this device for 30 days</span>
                     </label>
                     <button
                       type="button"
