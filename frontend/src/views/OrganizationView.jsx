@@ -187,6 +187,7 @@ export default function OrganizationView({
   // Filter & Sort States for "Ledger"
   const [ledgerFilter, setLedgerFilter] = useState('ALL');
   const [ledgerRailFilter, setLedgerRailFilter] = useState('ALL');
+  const [ledgerView, setLedgerView] = useState('ledger'); // 'ledger' | 'pending'
   const [ledgerCampaignFilter, setLedgerCampaignFilter] = useState('ALL');
   const [ledgerSort, setLedgerSort] = useState('NEWEST');
   const [searchQueryLedger, setSearchQueryLedger] = useState('');
@@ -5953,7 +5954,7 @@ export default function OrganizationView({
                   <span>Donation Ledger</span>
                 </h2>
                 <p className="admin-page-sub">
-                  Immutable, tamper-proof real-time transaction receipts and audit trail for contributions received by {orgDisplayName || 'your organization'}.
+                  Audited transaction receipts and payment verifications for {orgDisplayName || 'your organization'}.
                 </p>
               </div>
 
@@ -5996,94 +5997,118 @@ export default function OrganizationView({
               onToast={(msg) => showSuccess(msg, 'Counter-Proof Submitted')}
             />
 
-            {/* ── Unified Executive Metrics Strip — Vercel Design System (Zero Card-Ception) ── */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border)',
-              borderRadius: '10px',
-              overflow: 'hidden',
-              marginBottom: '20px'
-            }}>
-              {/* Stat 1: Total Funds Received */}
-              <div style={{ padding: '16px 20px', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                    Total Funds Received
-                  </span>
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#10b981' }}>payments</span>
-                </div>
-                <div style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-mono, monospace)', letterSpacing: '-0.02em' }}>
-                  <LiveCounter value={Math.round(totalRaisedByMe * 170000)} prefix="₱" duration={1050} /> <span style={{ fontSize: '0.80rem', color: 'var(--text-muted)' }}>PHP</span>
-                </div>
-                <div style={{ fontSize: '0.74rem', color: '#10b981', fontWeight: 500 }}>
-                  Gasless Sepolia Audited Total
-                </div>
-              </div>
-
-              {/* Stat 2: Verified Transactions */}
-              <div style={{ padding: '16px 20px', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                    Verified Transactions
-                  </span>
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#38bdf8' }}>receipt_long</span>
-                </div>
-                <div style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-mono, monospace)', letterSpacing: '-0.02em' }}>
-                  <LiveCounter value={ledgerTelemetry.totalCount} duration={850} /> <span style={{ fontSize: '0.80rem', color: 'var(--text-muted)' }}>Recorded</span>
-                </div>
-                <div style={{ fontSize: '0.74rem', color: '#38bdf8', fontWeight: 500 }}>
-                  100% Sepolia EVM Audited
-                </div>
-              </div>
-
-              {/* Stat 3: Payment Rails Breakdown */}
-              <div style={{ padding: '16px 20px', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                    Payment Rails
-                  </span>
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#a78bfa' }}>account_balance_wallet</span>
-                </div>
-                <div style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-mono, monospace)', letterSpacing: '-0.02em' }}>
-                  <LiveCounter value={ledgerTelemetry.railCounts.gcash + ledgerTelemetry.railCounts.maya + ledgerTelemetry.railCounts.bank} duration={850} /> <span style={{ fontSize: '0.80rem', color: 'var(--text-muted)' }}>PHP Donations</span>
-                </div>
-                <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-                  GCash ({ledgerTelemetry.railCounts.gcash}) · Maya ({ledgerTelemetry.railCounts.maya}) · Bank/Card ({ledgerTelemetry.railCounts.bank})
-                </div>
-              </div>
-
-              {/* Stat 4: Offline Verifications */}
-              {(() => {
-                const pendingCount = (pendingDonations || []).length;
-                return (
-                  <div style={{
-                    padding: '16px 20px',
-                    display: 'flex', flexDirection: 'column', gap: '4px',
-                    background: pendingCount > 0 ? 'rgba(245, 158, 11, 0.04)' : 'transparent'
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '0.68rem', fontWeight: 600, color: pendingCount > 0 ? '#f59e0b' : 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                        Offline Verifications
-                      </span>
-                      <span className="material-symbols-outlined" style={{ fontSize: '18px', color: pendingCount > 0 ? '#f59e0b' : '#10b981' }}>
-                        {pendingCount > 0 ? 'hourglass_top' : 'task_alt'}
-                      </span>
+            {/* ── Compact 3-Metric Executive Strip (Monochrome Geist) ── */}
+            {(() => {
+              const pendingCount = (pendingDonations || []).length;
+              return (
+                <div className="ledger-kpi-strip">
+                  <div className="ledger-kpi-cell">
+                    <span className="ledger-kpi-label">Total Verified Volume</span>
+                    <div className="ledger-kpi-value">
+                      <LiveCounter value={Math.round(totalRaisedByMe * 170000)} prefix="₱" duration={1050} />
                     </div>
-                    <div style={{ fontSize: '1.45rem', fontWeight: 800, color: pendingCount > 0 ? '#f59e0b' : 'var(--text-primary)', fontFamily: 'var(--font-mono, monospace)' }}>
-                      {pendingCount} <span style={{ fontSize: '0.80rem', color: 'var(--text-muted)' }}>Pending</span>
-                    </div>
-                    <div style={{ fontSize: '0.74rem', color: pendingCount > 0 ? '#f59e0b' : '#10b981', fontWeight: 500 }}>
-                      {pendingCount > 0 ? 'Action required in review table' : 'All payment slips verified'}
-                    </div>
+                    <span className="ledger-kpi-meta">Sepolia audited total</span>
                   </div>
-                );
-              })()}
+
+                  <div className="ledger-kpi-cell">
+                    <span className="ledger-kpi-label">Recorded Receipts</span>
+                    <div className="ledger-kpi-value">
+                      <LiveCounter value={ledgerTelemetry.totalCount} duration={850} />
+                    </div>
+                    <span className="ledger-kpi-meta">
+                      GCash {ledgerTelemetry.railCounts.gcash} · Maya {ledgerTelemetry.railCounts.maya} · Bank/Card {ledgerTelemetry.railCounts.bank}
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    className={`ledger-kpi-cell is-actionable${ledgerView === 'pending' ? ' is-active' : ''}`}
+                    onClick={() => setLedgerView(ledgerView === 'pending' ? 'ledger' : 'pending')}
+                    title={pendingCount > 0 ? 'Open pending verifications queue' : 'View pending verifications'}
+                  >
+                    <span className="ledger-kpi-label">
+                      <span>Pending Review</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>
+                        {pendingCount > 0 ? 'arrow_forward' : 'check_circle'}
+                      </span>
+                    </span>
+                    <div className={`ledger-kpi-value${pendingCount > 0 ? ' is-amber' : ''}`}>
+                      {pendingCount}
+                    </div>
+                    <span className={`ledger-kpi-meta${pendingCount > 0 ? ' is-link' : ''}`}>
+                      {pendingCount > 0
+                        ? (ledgerView === 'pending' ? 'Viewing verification queue' : 'Click to review slips')
+                        : 'All payment slips verified'}
+                    </span>
+                  </button>
+                </div>
+              );
+            })()}
+
+            {/* ── Primary Underline Tab Bar (Verified Rails + Dedicated Pending Review) ── */}
+            <div className="ledger-tab-bar">
+              <div className="ledger-tab-group">
+                {[
+                  { key: 'ALL', label: 'All Receipts', count: (orgDonations || []).length },
+                  { key: 'GCASH', label: 'GCash', count: ledgerTelemetry?.railCounts?.gcash || 0 },
+                  { key: 'MAYA', label: 'Maya', count: ledgerTelemetry?.railCounts?.maya || 0 },
+                  { key: 'BANK', label: 'Card & Bank', count: ledgerTelemetry?.railCounts?.bank || 0 }
+                ].map((rail) => {
+                  const isActive = ledgerView === 'ledger' && ledgerRailFilter === rail.key;
+                  return (
+                    <button
+                      key={rail.key}
+                      type="button"
+                      className={`ledger-tab-btn${isActive ? ' is-active' : ''}`}
+                      onClick={() => {
+                        setLedgerView('ledger');
+                        setLedgerRailFilter(rail.key);
+                        setCurrentPageLedger(1);
+                      }}
+                    >
+                      <span>{rail.label}</span>
+                      <span className="ledger-tab-count">{rail.count}</span>
+                    </button>
+                  );
+                })}
+
+                <span className="ledger-tab-divider" aria-hidden="true" />
+
+                <button
+                  type="button"
+                  className={`ledger-tab-btn is-pending${ledgerView === 'pending' ? ' is-active' : ''}`}
+                  onClick={() => setLedgerView('pending')}
+                >
+                  <span>Pending Review</span>
+                  <span className={`ledger-tab-count${(pendingDonations || []).length > 0 ? ' is-pending' : ''}`}>
+                    {(pendingDonations || []).length}
+                  </span>
+                </button>
+              </div>
             </div>
 
-            {/* ── Pending E-Wallet & Bank Slip Verifications Queue (Dual-Theme Geist) ── */}
-            {Boolean((pendingDonations || []).length > 0) && (() => {
+            {ledgerView === 'pending' ? (
+              <>
+                {/* ── Pending E-Wallet & Bank Slip Verifications Queue (Dual-Theme Geist) ── */}
+            {(pendingDonations || []).length === 0 ? (
+              <div className="db-empty-state" style={{ marginTop: '8px' }}>
+                <div className="db-empty-icon">
+                  <span className="material-symbols-outlined">task_alt</span>
+                </div>
+                <div className="db-empty-title">All payment slips verified</div>
+                <div className="db-empty-desc">
+                  There are no pending e-wallet or bank transfer slips awaiting review.
+                </div>
+                <button
+                  type="button"
+                  className="dbo-cmd-btn"
+                  style={{ marginTop: '14px' }}
+                  onClick={() => setLedgerView('ledger')}
+                >
+                  <span>View All Receipts</span>
+                </button>
+              </div>
+            ) : (() => {
               const pendingList = pendingDonations || [];
               const analyzedPending = pendingList.map((d) => {
                 const ai = d.ai_result || {};
@@ -6465,61 +6490,27 @@ export default function OrganizationView({
                 </section>
               );
             })()}
-
-            {/* ── Vercel Navigation Underline Tabs (Payment Rails) ── */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '24px',
-              borderBottom: '1px solid var(--border)',
-              marginBottom: '16px',
-              overflowX: 'auto',
-              scrollbarWidth: 'none'
-            }}>
-              {[
-                { key: 'ALL', label: 'All Receipts', count: (orgDonations || []).length },
-                { key: 'GCASH', label: 'GCash', count: ledgerTelemetry?.railCounts?.gcash || 0 },
-                { key: 'MAYA', label: 'Maya', count: ledgerTelemetry?.railCounts?.maya || 0 },
-                { key: 'BANK', label: 'Card & Bank', count: ledgerTelemetry?.railCounts?.bank || 0 }
-              ].map(rail => {
-                const isActive = ledgerRailFilter === rail.key;
-                return (
-                  <button
-                    key={rail.key}
-                    type="button"
-                    onClick={() => { setLedgerRailFilter(rail.key); setCurrentPageLedger(1); }}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      borderBottom: isActive ? '2px solid var(--text-primary)' : '2px solid transparent',
-                      color: isActive ? 'var(--text-primary)' : 'var(--text-muted)',
-                      padding: '10px 2px',
-                      marginBottom: '-1px',
-                      fontSize: '0.82rem',
-                      fontWeight: isActive ? 600 : 500,
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      whiteSpace: 'nowrap',
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    <span>{rail.label}</span>
-                    <span style={{
-                      background: isActive ? 'var(--bg-hover)' : 'var(--bg-inset)',
-                      color: isActive ? 'var(--text-primary)' : 'var(--text-muted)',
-                      padding: '1px 7px',
-                      borderRadius: '10px',
-                      fontSize: '0.70rem',
-                      fontWeight: 600
-                    }}>
-                      {rail.count}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+              </>
+            ) : (
+              <>
+                {(pendingDonations || []).length > 0 && (
+                  <div className="ledger-pending-strip" role="status">
+                    <div className="ledger-pending-strip-left">
+                      <span className="ledger-pending-dot" aria-hidden="true" />
+                      <span>
+                        <strong>{(pendingDonations || []).length}</strong> payment slip{(pendingDonations || []).length === 1 ? '' : 's'} awaiting verification before on-chain confirmation.
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="ledger-pending-strip-btn"
+                      onClick={() => setLedgerView('pending')}
+                    >
+                      <span>Review Queue ({(pendingDonations || []).length})</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>arrow_forward</span>
+                    </button>
+                  </div>
+                )}
 
             {/* ── Unified Single-Row Vercel Toolbar ── */}
             <div style={{
@@ -7370,6 +7361,8 @@ export default function OrganizationView({
                 </div>
               );
             })()}
+              </>
+            )}
           </div>
         )}
 

@@ -673,3 +673,270 @@
     justify-content: flex-start;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Donation Ledger — Compact Monochrome KPI Strip & Slim Pending Banner
+   ═══════════════════════════════════════════════════════════════════════════ */
+.ledger-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 18px;
+}
+
+.ledger-kpi-cell {
+  padding: 14px 18px;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  text-align: left;
+  background: transparent;
+  font-family: inherit;
+}
+
+.ledger-kpi-cell:last-child {
+  border-right: none;
+}
+
+.ledger-kpi-cell.is-actionable {
+  border-top: none;
+  border-bottom: none;
+  border-left: none;
+  cursor: pointer;
+  transition: background 0.14s ease;
+}
+
+.ledger-kpi-cell.is-actionable:hover {
+  background: var(--bg-hover);
+}
+
+.ledger-kpi-cell.is-active {
+  background: rgba(245, 158, 11, 0.06);
+}
+
+[data-theme="light"] .ledger-kpi-cell.is-active {
+  background: #fffbeb;
+}
+
+.ledger-kpi-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.055em;
+  color: var(--text-muted);
+}
+
+.ledger-kpi-value {
+  font-size: 1.38rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+  color: var(--text-primary);
+  font-family: var(--font-mono, monospace);
+  font-variant-numeric: tabular-nums;
+}
+
+.ledger-kpi-value.is-amber {
+  color: #f59e0b;
+}
+
+[data-theme="light"] .ledger-kpi-value.is-amber {
+  color: #d97706;
+}
+
+.ledger-kpi-meta {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ledger-kpi-meta.is-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #f59e0b;
+  font-weight: 500;
+}
+
+[data-theme="light"] .ledger-kpi-meta.is-link {
+  color: #b45309;
+}
+
+/* Primary Tab Bar */
+.ledger-tab-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 14px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.ledger-tab-group {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.ledger-tab-btn {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  padding: 9px 2px;
+  margin-bottom: -1px;
+  font-size: 0.81rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+  transition: color 0.14s ease, border-color 0.14s ease;
+}
+
+.ledger-tab-btn:hover {
+  color: var(--text-primary);
+}
+
+.ledger-tab-btn.is-active {
+  border-bottom-color: var(--text-primary);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.ledger-tab-btn.is-pending.is-active {
+  border-bottom-color: #f59e0b;
+}
+
+.ledger-tab-count {
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 0.69rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  background: var(--bg-subcard);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.ledger-tab-btn.is-active .ledger-tab-count {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.ledger-tab-count.is-pending {
+  background: rgba(245, 158, 11, 0.14);
+  border-color: rgba(245, 158, 11, 0.32);
+  color: #f59e0b;
+}
+
+[data-theme="light"] .ledger-tab-count.is-pending {
+  background: #fef3c7;
+  border-color: #fcd34d;
+  color: #b45309;
+}
+
+.ledger-tab-divider {
+  width: 1px;
+  height: 16px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+/* Slim 1-Line Pending Notice Strip (replaces double-stacked table) */
+.ledger-pending-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 14px;
+  margin-bottom: 14px;
+  border-radius: 10px;
+  background: rgba(245, 158, 11, 0.06);
+  border: 1px solid rgba(245, 158, 11, 0.24);
+  flex-wrap: wrap;
+}
+
+[data-theme="light"] .ledger-pending-strip {
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+
+.ledger-pending-strip-left {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 0.78rem;
+  color: var(--text-primary);
+  min-width: 0;
+}
+
+.ledger-pending-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #f59e0b;
+  flex-shrink: 0;
+}
+
+.ledger-pending-strip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 11px;
+  border-radius: 7px;
+  border: 1px solid rgba(245, 158, 11, 0.38);
+  background: rgba(245, 158, 11, 0.14);
+  color: #fbbf24;
+  font-size: 0.73rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.14s ease, border-color 0.14s ease;
+}
+
+.ledger-pending-strip-btn:hover {
+  background: rgba(245, 158, 11, 0.22);
+}
+
+[data-theme="light"] .ledger-pending-strip-btn {
+  background: #ffffff;
+  border-color: #f59e0b;
+  color: #b45309;
+}
+
+[data-theme="light"] .ledger-pending-strip-btn:hover {
+  background: #fef3c7;
+}
+
+@media (max-width: 780px) {
+  .ledger-kpi-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .ledger-kpi-cell {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .ledger-kpi-cell:last-child {
+    border-bottom: none;
+  }
+}
