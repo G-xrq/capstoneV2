@@ -755,40 +755,17 @@ export default function App() {
     try {
       const authToken = token || localStorage.getItem('bbdrts_token');
 
-      // ── Stage 1: Session Token (~320ms) ──
-      await Promise.race([
-        Promise.all([
-          authToken ? fetch(API_URL + '/api/auth/me', { headers: { 'Authorization': 'Bearer ' + authToken } }).catch(() => null) : Promise.resolve(),
-          new Promise(r => setTimeout(r, 320))
-        ]),
-        new Promise(r => setTimeout(r, 550))
-      ]);
+      // ── Stage 1: Session Token (~260ms) ──
+      await new Promise(r => setTimeout(r, 260));
 
-      // ── Stage 2: Syncing Role Governance Permissions (~320ms) ──
+      // ── Stage 2: Syncing Role Governance Permissions (~260ms; views fetch their own live state on mount) ──
       setAuthTransition(prev => ({
         ...prev,
         stage: 2,
         title: 'Signing you in...',
         subtitle: `Syncing ${assignedRole ? (assignedRole.charAt(0).toUpperCase() + assignedRole.slice(1)) : 'donor'} governance permissions...`
       }));
-      const roleFetches = [];
-      if (authToken) {
-        if (assignedRole === 'organization') {
-          roleFetches.push(fetch(API_URL + '/api/organization/kyc', { headers: { 'Authorization': 'Bearer ' + authToken } }).catch(() => null));
-          roleFetches.push(fetch(API_URL + '/api/donations/me', { headers: { 'Authorization': 'Bearer ' + authToken } }).catch(() => null));
-          roleFetches.push(fetch(API_URL + '/api/manual-donations/pending', { headers: { 'Authorization': 'Bearer ' + authToken } }).catch(() => null));
-        } else if (assignedRole === 'admin') {
-          roleFetches.push(fetch(API_URL + '/api/admin/organizations', { headers: { 'Authorization': 'Bearer ' + authToken } }).catch(() => null));
-          roleFetches.push(fetch(API_URL + '/api/public-stats').catch(() => null));
-        } else {
-          roleFetches.push(fetch(API_URL + '/api/donations/me', { headers: { 'Authorization': 'Bearer ' + authToken } }).catch(() => null));
-        }
-      }
-
-      await Promise.race([
-        Promise.all([...roleFetches, new Promise(r => setTimeout(r, 320))]),
-        new Promise(r => setTimeout(r, 600))
-      ]);
+      await new Promise(r => setTimeout(r, 260));
 
       // ── Stage 3: Connecting Sepolia EVM & Campaigns (~320ms) ──
       setAuthTransition(prev => ({

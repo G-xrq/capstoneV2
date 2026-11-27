@@ -6081,7 +6081,6 @@ app.get('/api/donations/me', authenticateToken, async (req, res) => {
         dt.Donor_ID as donorId,
         COALESCE(dt.Wallet_Address, d.Wallet_Address, '') as donorWallet,
         COALESCE(NULLIF(d.Display_Name, ''), NULLIF(d.Name, ''), NULLIF(d.Username, '')) as donorName,
-        d.Avatar_Url as donorAvatar,
         ROUND(COALESCE(m.Amount, dt.Amount) * 170000, 2) as declaredPhp,
         ROUND(dt.Amount * 170000, 2) as creditedPhp,
         ROUND((dt.Amount - COALESCE(m.Amount, dt.Amount)) * 170000, 2) as variancePhp,
@@ -6091,7 +6090,7 @@ app.get('/api/donations/me', authenticateToken, async (req, res) => {
           ELSE 'MATCH'
         END as auditStatus,
         m.Reference_Number as referenceNumber,
-        m.Receipt_Base64 as receiptBase64
+        CASE WHEN m.Receipt_Base64 IS NOT NULL AND LENGTH(m.Receipt_Base64) > 20 THEN 1 ELSE 0 END as hasReceipt
       FROM DONATION_TRANSACTION dt
       LEFT JOIN MANUAL_DONATION m ON dt.Tx_Hash = m.Tx_Hash
       LEFT JOIN DONOR d ON dt.Donor_ID = d.Donor_ID
@@ -6149,6 +6148,42 @@ app.get('/api/donations/me', authenticateToken, async (req, res) => {
     res.json(list);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch personal donations: ' + err.message });
+  }
+});
+
+// On-demand single donation slip fetch (keeps GET /api/donations/me lightweight)
+app.get('/api/donations/me/:id/receipt', authenticateToken, async (req, res) => {
+  const txId = Number(req.params.id);
+  if (!txId || Number.isNaN(txId)) {
+    return res.status(400).json({ error: 'Invalid transaction ID.' });
+  }
+  try {
+    const [rows] = await db.query(
+      `SELECT dt.Transaction_ID, dt.Donor_ID, dt.Org_ID, c.Org_ID as Campaign_Org_ID,
+              m.Receipt_Base64 as receiptBase64, m.Reference_Number as referenceNumber
+       FROM DONATION_TRANSACTION dt
+       LEFT JOIN CAMPAIGN c ON dt.Campaign_ID = c.Campaign_ID
+       LEFT JOIN MANUAL_DONATION m ON dt.Tx_Hash = m.Tx_Hash
+       WHERE dt.Transaction_ID = ?
+       LIMIT 1`,
+      [txId]
+    );
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ error: 'Donation record not found.' });
+    }
+    const row = rows[0];
+    const isAdmin = req.user.role === 'admin';
+    const isOwnerDonor = req.user.role === 'donor' && Number(row.Donor_ID) === Number(req.user.id);
+    const isOwnerOrg = req.user.role === 'organization' && (Number(row.Org_ID) === Number(req.user.id) || Number(row.Campaign_Org_ID) === Number(req.user.id));
+    if (!isAdmin && !isOwnerDonor && !isOwnerOrg) {
+      return res.status(403).json({ error: 'Access denied.' });
+    }
+    res.json({
+      receiptBase64: row.receiptBase64 || null,
+      referenceNumber: row.referenceNumber || null
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to load payment slip: ' + err.message });
   }
 });
 

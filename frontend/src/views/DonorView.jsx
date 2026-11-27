@@ -117,6 +117,33 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
   const [disputeTarget, setDisputeTarget] = useState(null);
   const [donorExportOpen, setDonorExportOpen] = useState(false);
   const [showReceiptZoom, setShowReceiptZoom] = useState(false);
+  const [receiptSlipCache, setReceiptSlipCache] = useState({});
+  const [loadingReceiptSlip, setLoadingReceiptSlip] = useState(false);
+
+  const handleToggleReceiptSlip = async (tx) => {
+    if (showReceiptZoom) {
+      setShowReceiptZoom(false);
+      return;
+    }
+    setShowReceiptZoom(true);
+    if (tx.receiptBase64 || receiptSlipCache[tx.id]) return;
+    setLoadingReceiptSlip(true);
+    try {
+      const token = localStorage.getItem('bbdrts_token');
+      const res = await fetch(`${API_URL}/api/donations/me/${tx.id}/receipt`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.receiptBase64) {
+          setReceiptSlipCache((prev) => ({ ...prev, [tx.id]: data.receiptBase64 }));
+        }
+      }
+    } catch (_) {
+    } finally {
+      setLoadingReceiptSlip(false);
+    }
+  };
   const [showTierModal, setShowTierModal] = useState(false);
   const [unlockedTierModal, setUnlockedTierModal] = useState(null);
   const [showGuidedTour, setShowGuidedTour] = useState(false);
@@ -3383,8 +3410,8 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                   </div>
                 </div>
 
-                {/* Optional Uploaded Slip Preview */}
-                {d.receiptBase64 && (
+                {/* Optional Uploaded Slip Preview (lazy-loaded on click) */}
+                {(d.hasReceipt || d.receiptBase64) && (
                   <div className="rcp-modal-slip">
                     <div className="rcp-modal-slip-head">
                       <span>
@@ -3394,14 +3421,24 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                       <button
                         type="button"
                         className="rcp-modal-link-btn"
-                        onClick={() => setShowReceiptZoom(!showReceiptZoom)}
+                        onClick={() => handleToggleReceiptSlip(d)}
                       >
                         {showReceiptZoom ? 'Hide Slip' : 'View Slip'}
                       </button>
                     </div>
                     {showReceiptZoom && (
                       <div className="rcp-modal-slip-img-wrap">
-                        <img src={d.receiptBase64} alt="Official Payment Slip" />
+                        {loadingReceiptSlip && !(d.receiptBase64 || receiptSlipCache[d.id]) ? (
+                          <div style={{ padding: '20px', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                            Loading payment slip...
+                          </div>
+                        ) : (d.receiptBase64 || receiptSlipCache[d.id]) ? (
+                          <img src={d.receiptBase64 || receiptSlipCache[d.id]} alt="Official Payment Slip" />
+                        ) : (
+                          <div style={{ padding: '20px', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                            Payment slip preview unavailable.
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

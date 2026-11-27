@@ -22,6 +22,19 @@ import './DonateCheckoutModal.css';
 
 const SEPOLIA_EXPLORER = 'https://sepolia.etherscan.io/tx/';
 
+let _cachedGatewayStatusPromise = null;
+function fetchGatewayStatusOnce() {
+  if (!_cachedGatewayStatusPromise) {
+    _cachedGatewayStatusPromise = fetch(`${API_URL}/api/payments/gateway-status`)
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => {
+        _cachedGatewayStatusPromise = null;
+        return null;
+      });
+  }
+  return _cachedGatewayStatusPromise;
+}
+
 export const shortAddr = (addr) =>
   addr ? `${addr.slice(0, 6)}…${addr.slice(-4)}` : '';
 
@@ -1270,12 +1283,11 @@ export default function CampaignCard(props) {
   };
 
   useEffect(() => {
-    fetch(`${API_URL}/api/payments/gateway-status`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (d?.gatewayEnabled || d?.xenditEnabled) setXenditEnabled(true);
-      })
-      .catch(() => {});
+    let active = true;
+    fetchGatewayStatusOnce().then((d) => {
+      if (active && (d?.gatewayEnabled || d?.xenditEnabled)) setXenditEnabled(true);
+    });
+    return () => { active = false; };
   }, []);
 
   const createDirectQrIntent = async (method) => {

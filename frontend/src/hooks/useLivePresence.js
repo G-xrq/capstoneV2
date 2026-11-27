@@ -72,14 +72,26 @@ export function useLivePresence({
     return 'active';
   };
 
-  const sendHeartbeat = async (overrideEventType = null, overrideTabState = null) => {
+  const lastSentSignatureRef = useRef('');
+  const lastSentAtRef = useRef(0);
+
+  const sendHeartbeat = async (overrideEventType = null, overrideTabState = null, { force = false } = {}) => {
     if (typeof window === 'undefined' || hasLeftRef.current) return;
     const sessionId = sessionIdRef.current;
     const { currentView: view, currentSubpage: subpage, walletAddress: wallet, dbUser: user } = latestRef.current;
     const token = user ? (localStorage.getItem('bbdrts_token') || localStorage.getItem('token') || '') : '';
     const tabState = computeTabState(overrideTabState);
-    lastStatusSentRef.current = tabState;
     const path = `${window.location.pathname || '/'}${window.location.hash || ''}`.slice(0, 240);
+
+    // Prevent rapid back-to-back duplicate heartbeat bursts for identical state
+    const signature = `${user?.id || 'guest'}|${user?.role || ''}|${view}|${subpage}|${tabState}|${overrideEventType || ''}`;
+    const now = Date.now();
+    if (!force && !overrideEventType && signature === lastSentSignatureRef.current && (now - lastSentAtRef.current) < 12000) {
+      return;
+    }
+    lastSentSignatureRef.current = signature;
+    lastSentAtRef.current = now;
+    lastStatusSentRef.current = tabState;
 
     try {
       await fetch(`${API_URL}/api/presence/heartbeat`, {
@@ -104,14 +116,18 @@ export function useLivePresence({
     }
   };
 
-  // Trigger immediate heartbeat whenever identity, screen, subpage, wallet, or auth event changes
+  // Debounce rapid identity/view/subpage transitions during login & navigation into a single heartbeat
   useEffect(() => {
     lastActivityMsRef.current = Date.now();
     const hint = eventHint;
-    sendHeartbeat(hint);
-    if (hint && typeof onEventHintConsumed === 'function') {
-      onEventHintConsumed();
-    }
+    const delayMs = hint ? 150 : 850;
+    const timer = window.setTimeout(() => {
+      sendHeartbeat(hint, null, { force: Boolean(hint) });
+      if (hint && typeof onEventHintConsumed === 'function') {
+        onEventHintConsumed();
+      }
+    }, delayMs);
+    return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     dbUser?.id,
@@ -141,7 +157,8 @@ export function useLivePresence({
     };
 
     const intervalId = window.setInterval(() => {
-      sendHeartbeat();
+      if (document.visibilityState === 'hidden') return;
+      sendHeartbeat(null, null, { force: true });
     }, 45000);
 
     const handleVisibility = () => {
