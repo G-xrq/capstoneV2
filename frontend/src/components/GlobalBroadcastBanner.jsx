@@ -36,8 +36,11 @@ export default function GlobalBroadcastBanner({ userRole = 'donor' }) {
 
   useEffect(() => {
     fetchActiveAnnouncements();
-    // Quiet 60s fallback poll alongside instant SSE push
-    const timer = setInterval(fetchActiveAnnouncements, 60000);
+    // Quiet 3-minute fallback poll alongside instant SSE push
+    const timer = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      fetchActiveAnnouncements();
+    }, 180000);
     return () => clearInterval(timer);
   }, [userRole]);
 

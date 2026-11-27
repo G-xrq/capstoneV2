@@ -44,11 +44,11 @@ class RealtimeSyncEngine {
     this._connectSse();
     this._setupLifecycleListeners();
 
-    // Quiet safety-net check every 12s while tab is visible (handles silent proxy stalls)
+    // Quiet safety-net check every 60s while tab is visible (SSE handles real-time push)
     this.safetyPollTimer = window.setInterval(() => {
       if (document.visibilityState === 'hidden') return;
       this.checkVersionNow(false);
-    }, 12000);
+    }, 60000);
   }
 
   _emitStatus() {
@@ -236,7 +236,7 @@ class RealtimeSyncEngine {
     this.fallbackPollTimer = window.setInterval(() => {
       if (document.visibilityState === 'hidden') return;
       this.checkVersionNow(true);
-    }, 4500);
+    }, 20000);
   }
 
   _stopFallbackPolling() {

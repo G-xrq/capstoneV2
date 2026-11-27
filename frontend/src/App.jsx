@@ -255,25 +255,31 @@ export default function App() {
         const res = await fetch(`${API_URL}/api/auth/session-check`, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        if (res.status === 401) {
+        if (res.status === 401 || res.status === 403) {
           const data = await res.json().catch(() => ({}));
-          if (data.sessionRevoked && active) {
+          if (active) {
+            active = false;
             localStorage.removeItem('bbdrts_token');
             localStorage.removeItem('token');
             localStorage.removeItem('bbdrts_user');
+            localStorage.removeItem('bbdrts_role');
             setDbUser(null);
-            setShowAuth(true);
+            if (!isAdminPortalRoute) {
+              setShowAuth(true);
+            }
             showError(
-              'Your session was terminated on another device or by a security action. Please sign in again.',
-              'Session Terminated',
-              8000
+              data.sessionRevoked
+                ? 'Your session was terminated on another device or by a security action. Please sign in again.'
+                : 'Your session has expired. Please sign in again.',
+              data.sessionRevoked ? 'Session Terminated' : 'Session Expired',
+              7000
             );
           }
         }
       } catch (_) {}
     };
 
-    const intervalId = window.setInterval(verifySessionAlive, 8000);
+    const intervalId = window.setInterval(verifySessionAlive, 60000);
     const onFocus = () => verifySessionAlive();
     window.addEventListener('focus', onFocus);
     document.addEventListener('visibilitychange', onFocus);

@@ -142,7 +142,7 @@ export function useLivePresence({
 
     const intervalId = window.setInterval(() => {
       sendHeartbeat();
-    }, 15000);
+    }, 45000);
 
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {

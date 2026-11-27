@@ -287,8 +287,10 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
     }
     fetchNotifications(1, false, filter);
     const pollInterval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      if (!localStorage.getItem('bbdrts_token')) return;
       fetchNotifications(1, false, filter);
-    }, 20000);
+    }, 90000);
     return () => clearInterval(pollInterval);
   }, [dbUser, filter]);
 

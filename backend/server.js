@@ -488,12 +488,6 @@ const authenticateToken = (req, res, next) => {
   const token = authHeader && authHeader.split(' ')[1];
   if (!token) return res.status(401).json({ error: 'Access denied. No token provided.' });
 
-  // Direct Admin Access bypass for local development, demo sessions, and automated UI access
-  if (token === 'direct_admin_access_token') {
-    req.user = { id: 1, email: 'bbdrts@gmail.com', role: 'admin' };
-    return next();
-  }
-
   jwt.verify(token, secretKey, async (err, user) => {
     if (err) return res.status(403).json({ error: 'Token expired or invalid.' });
 
@@ -917,9 +911,7 @@ app.post('/api/auth/register-request', rateLimiter(10, 15 * 60 * 1000), async (r
       isDualOtp: false,
       mobileNumber: mobile,
       message: `A 6-digit verification code has been dispatched to ${targetEmail}.`,
-      emailSent,
-      devEmailCode: emailOtpCode,
-      devCode: emailOtpCode
+      emailSent
     });
   } catch (error) {
     res.status(500).json({ error: 'Server error during registration verification: ' + error.message });
@@ -1097,33 +1089,9 @@ app.post('/api/auth/register', rateLimiter(15, 15 * 60 * 1000), async (req, res)
   }
 });
 
-// ── Direct Admin Access Login (Presentation & Fast Access) ─
-app.post('/api/auth/direct-admin', async (req, res) => {
-  try {
-    const [rows] = await db.query('SELECT * FROM ADMINISTRATOR WHERE Admin_ID = 1 LIMIT 1');
-    const admin = rows[0] || {
-      Admin_ID: 1,
-      Username: 'bbdrts@gmail.com',
-      Wallet_Address: '0x206e5d8b76c8c4598d1a457493a746535560b771',
-      Name: 'System Administrator'
-    };
-    const token = jwt.sign(
-      { id: admin.Admin_ID, email: admin.Username, role: 'admin' },
-      secretKey,
-      { expiresIn: '7d' }
-    );
-    res.json({
-      message: 'Direct admin session authenticated.',
-      token,
-      user: {
-        ...formatUserObj(admin, 'admin', 'Admin_ID'),
-        wallet_address: admin.Wallet_Address || '0x206e5d8b76c8c4598d1a457493a746535560b771',
-        verification_status: 'Approved'
-      }
-    });
-  } catch (err) {
-    res.status(500).json({ error: 'Direct admin auth failed: ' + err.message });
-  }
+// ── Direct Admin Access Disabled (Use /admin with Administrator Credentials) ──
+app.post('/api/auth/direct-admin', (_req, res) => {
+  res.status(410).json({ error: 'Direct admin bypass is disabled. Sign in with Administrator credentials at /admin.' });
 });
 
 // ── Routes: Login (Unified Auto-Detect across Donor, NGO, and Admin) ──
@@ -1666,8 +1634,7 @@ app.post('/api/auth/login-otp-request', rateLimiter(100, 15 * 60 * 1000), async 
       message: emailSent
         ? `A 6-digit login passcode has been dispatched to ${targetEmail}. Please check your inbox (and Spam/Junk folder if not seen).`
         : `A 6-digit login passcode has been generated. Use the code below to log in:`,
-      emailSent,
-      devCode: emailSent ? undefined : otpCode
+      emailSent
     });
   } catch (err) {
     res.status(500).json({ error: 'Server error: ' + err.message });
@@ -1862,10 +1829,8 @@ app.post('/api/auth/forgot-password', rateLimiter(8, 15 * 60 * 1000), async (req
 
     res.json({
       success: true,
-      message: `A password reset link has been sent to ${targetEmail}. Please check your inbox.`,
-      emailSent,
-      devResetUrl: emailSent ? undefined : resetUrl,
-      resetUrl: process.env.NODE_ENV !== 'production' ? resetUrl : undefined
+      message: `If an account is associated with ${targetEmail}, a password reset link has been sent. Please check your inbox.`,
+      emailSent
     });
   } catch (error) {
     res.status(500).json({ error: 'Server error during password recovery: ' + error.message });
@@ -2506,8 +2471,8 @@ app.post('/api/auth/sessions/revoke', authenticateToken, async (req, res) => {
 });
 
 // Lightweight real-time session validity check (triggers immediate auto-logout if revoked)
-app.get('/api/auth/session-check', authenticateToken, (req, res) => {
-  res.json({ valid: true, sessionId: req.user.sessionId || null, email: req.user.email });
+app.get('/api/auth/session-check', authenticateToken, (_req, res) => {
+  res.json({ valid: true });
 });
 
 // Revoke All Other Sessions (AND reset 30-day trusted device tokens on all logged-out devices)
@@ -9115,15 +9080,18 @@ app.get('/api/campaigns/:id/donations', async (req, res) => {
 
       const isAnon = Boolean(r.Is_Anonymous);
 
+      const { preferencesJson: _omitPrefs, ...publicRow } = r;
       return {
-        ...r,
+        ...publicRow,
+        donorId: isAnon ? null : r.donorId,
+        wallet: isAnon ? '' : (r.wallet || ''),
         isGuest,
         hideBadge,
         avatarUrl: isAnon ? '' : (r.avatarUrl || ''),
         username: isAnon ? '' : (r.username ? r.username.split('@')[0] : ''),
         location: isAnon ? '' : (r.location || ''),
         bio: isAnon ? '' : (r.bio || ''),
-        globalTotalEth: globalEth
+        globalTotalEth: isAnon ? 0 : globalEth
       };
     });
 
@@ -11996,7 +11964,10 @@ app.post('/api/ai/test-key', async (req, res) => {
 });
 
 // ── NGO Batch Manual Donations Verification Endpoint ──────────────────────
-app.post('/api/manual-donations/batch-verify', async (req, res) => {
+app.post('/api/manual-donations/batch-verify', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'organization' && req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Access denied. Organization or Administrator privileges required.' });
+  }
   try {
     const { manualIds } = req.body || {};
     if (!Array.isArray(manualIds) || manualIds.length === 0) {
@@ -12464,14 +12435,20 @@ function evaluateMaintenanceRuntime(rawConfig, nowMs = Date.now()) {
   };
 }
 
-async function readStoredMaintenanceConfig() {
-  const [rows] = await db.query('SELECT Setting_Value FROM SYSTEM_SETTINGS WHERE Setting_Key = "maintenance_mode"');
-  if (rows && rows.length > 0 && rows[0].Setting_Value) {
-    return typeof rows[0].Setting_Value === 'string'
-      ? JSON.parse(rows[0].Setting_Value)
-      : rows[0].Setting_Value;
+let maintenanceConfigCache = { value: null, fetchedAt: 0 };
+const MAINTENANCE_CACHE_TTL_MS = 30 * 1000;
+
+async function readStoredMaintenanceConfig(forceRefresh = false) {
+  const now = Date.now();
+  if (!forceRefresh && maintenanceConfigCache.value && (now - maintenanceConfigCache.fetchedAt) < MAINTENANCE_CACHE_TTL_MS) {
+    return { ...maintenanceConfigCache.value };
   }
-  return { ...DEFAULT_MAINTENANCE_CONFIG };
+  const [rows] = await db.query('SELECT Setting_Value FROM SYSTEM_SETTINGS WHERE Setting_Key = "maintenance_mode"');
+  const parsed = (rows && rows.length > 0 && rows[0].Setting_Value)
+    ? (typeof rows[0].Setting_Value === 'string' ? JSON.parse(rows[0].Setting_Value) : rows[0].Setting_Value)
+    : { ...DEFAULT_MAINTENANCE_CONFIG };
+  maintenanceConfigCache = { value: parsed, fetchedAt: now };
+  return { ...parsed };
 }
 
 async function persistMaintenanceConfig(configObj) {
@@ -12492,6 +12469,7 @@ async function persistMaintenanceConfig(configObj) {
     VALUES ('maintenance_mode', ?)
     ON DUPLICATE KEY UPDATE Setting_Value = VALUES(Setting_Value), Updated_At = CURRENT_TIMESTAMP
   `, [jsonStr]);
+  maintenanceConfigCache = { value: { ...storable }, fetchedAt: Date.now() };
 }
 
 let lastMaintenanceEffectiveState = null;
@@ -12549,10 +12527,10 @@ async function checkMaintenanceScheduleTransitions() {
   }
 }
 
-// Lightweight 4-second server watchdog to push instant SSE events on schedule start & completion
+// Lightweight 30-second server watchdog to push SSE events on schedule start & completion (reads in-memory cache)
 const maintenanceWatchdogTimer = setInterval(() => {
   checkMaintenanceScheduleTransitions().catch(() => {});
-}, 4000);
+}, 30000);
 if (typeof maintenanceWatchdogTimer.unref === 'function') {
   maintenanceWatchdogTimer.unref();
 }
@@ -12581,8 +12559,11 @@ app.get('/api/system/maintenance', async (req, res) => {
   }
 });
 
-// POST /api/system/maintenance/emergency-unlock (Emergency Admin Gate)
-app.post('/api/system/maintenance/emergency-unlock', async (req, res) => {
+// POST /api/system/maintenance/emergency-unlock (Authenticated Admin Only)
+app.post('/api/system/maintenance/emergency-unlock', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Access denied. Administrator privileges required.' });
+  }
   try {
     const configToSave = {
       ...DEFAULT_MAINTENANCE_CONFIG,
@@ -12613,8 +12594,6 @@ app.post('/api/system/maintenance/emergency-unlock', async (req, res) => {
     res.json({
       success: true,
       message: 'Maintenance mode successfully deactivated. Full platform access restored.',
-      token: 'direct_admin_access_token',
-      role: 'admin',
       config
     });
   } catch (err) {
@@ -12822,35 +12801,6 @@ async function resolveOptionalPresenceUser(req) {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
     if (!token || token === 'null' || token === 'undefined') return null;
-
-    if (token === 'direct_admin_access_token') {
-      try {
-        const [rows] = await db.query('SELECT * FROM ADMINISTRATOR WHERE Admin_ID = 1 LIMIT 1');
-        if (rows && rows.length > 0) {
-          const formatted = formatUserObj(rows[0], 'admin', 'Admin_ID');
-          return {
-            id: formatted.id,
-            name: formatted.name || 'System Administrator',
-            email: formatted.email || 'bbdrts@gmail.com',
-            role: 'admin',
-            orgName: null,
-            verificationStatus: 'Verified',
-            walletAddress: formatted.wallet_address || null,
-            createdAt: rows[0].Created_At ? new Date(rows[0].Created_At).toISOString() : null
-          };
-        }
-      } catch (_) {}
-      return {
-        id: 1,
-        name: 'System Administrator',
-        email: 'bbdrts@gmail.com',
-        role: 'admin',
-        orgName: null,
-        verificationStatus: 'Verified',
-        walletAddress: null,
-        createdAt: null
-      };
-    }
 
     const decoded = await new Promise((resolve) => {
       jwt.verify(token, secretKey, (err, payload) => {
@@ -13120,10 +13070,6 @@ app.post('/api/presence/heartbeat', async (req, res) => {
 
     res.json({
       ok: true,
-      sessionId: rawSessionId,
-      visitorCode,
-      isAuthenticated: Boolean(isAuthenticated),
-      role: authUser ? authUser.role : 'guest',
       status: tabState
     });
   } catch (err) {
@@ -13176,8 +13122,8 @@ app.get('/api/admin/active-users', authenticateToken, async (req, res) => {
       [cutoffMs]
     );
 
-    const ONLINE_THRESHOLD_MS = 40 * 1000;
-    const IDLE_THRESHOLD_MS = 95 * 1000;
+    const ONLINE_THRESHOLD_MS = 90 * 1000;
+    const IDLE_THRESHOLD_MS = 180 * 1000;
 
     const maskPresenceIp = (rawIp) => {
       const ip = String(rawIp || '').trim();

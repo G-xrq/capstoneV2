@@ -152,8 +152,9 @@ export default function MaintenanceGuardModal({
     window.addEventListener('bbdrts_toggle_preview_maintenance', handlePreviewEvent);
 
     const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
       fetchStatus(false);
-    }, 10000);
+    }, 120000);
 
     return () => {
       window.removeEventListener('bbdrts_maintenance_changed', handleMaintEvent);
@@ -168,11 +169,9 @@ export default function MaintenanceGuardModal({
     { debounceMs: 120 }
   );
 
-  // 1-Tap Direct Admin Access Handler (Bypasses barrier directly into Admin Console)
+  // Redirect Administrator to the dedicated authenticated /admin portal
   const handleDirectAdminBypass = () => {
-    localStorage.setItem('bbdrts_token', 'direct_admin_access_token');
-    localStorage.setItem('bbdrts_role', 'admin');
-    window.location.reload();
+    window.location.href = '/admin';
   };
 
   const nowMs = liveClock.getTime() + clockOffsetRef.current;
