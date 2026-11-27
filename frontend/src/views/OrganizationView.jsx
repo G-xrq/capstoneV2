@@ -1795,7 +1795,7 @@ export default function OrganizationView({
 
   const handleOpenRejection = (donation) => {
     setRejectingDonation(donation);
-    setRejectionReason('Payment could not be verified in our official account statements.');
+    setRejectionReason('Payment not received in official organization account statements');
   };
 
   const handleConfirmApproval = async (varianceReasonArg = '') => {

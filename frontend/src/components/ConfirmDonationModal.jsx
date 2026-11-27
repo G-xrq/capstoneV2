@@ -67,6 +67,7 @@ export default function ConfirmDonationModal({
   const enteredAmountNum = Number.isFinite(parseFloat(confirmedAmountPhp)) ? parseFloat(confirmedAmountPhp) : 0;
   const diffPhp = enteredAmountNum - claimedAmountPhp;
   const exceedsRailCap = enteredAmountNum > maxRailCapPhp;
+  const isExplicitZero = hasEntered && enteredAmountNum <= 0;
   const isInvalidOrZero = !hasEntered || enteredAmountNum <= 0;
   const isBlocked = isInvalidOrZero || exceedsRailCap;
   const isOverCredit = !isBlocked && claimedAmountPhp > 0 && diffPhp >= 0.01;
@@ -101,7 +102,10 @@ export default function ConfirmDonationModal({
   const handleAmountChange = (rawVal) => {
     const cleaned = String(rawVal ?? '').replace(/[^0-9.]/g, '');
     const parts = cleaned.split('.');
-    const intPart = (parts[0] || '').slice(0, 7); // Max 7 integer digits (up to ₱9,999,999)
+    let intPart = (parts[0] || '').slice(0, 7); // Max 7 integer digits (up to ₱9,999,999)
+    if (intPart.length > 1 && intPart.startsWith('0')) {
+      intPart = intPart.replace(/^0+/, '') || '0';
+    }
     const decPart = parts.length > 1 ? '.' + parts.slice(1).join('').slice(0, 2) : '';
     setConfirmedAmountPhp(intPart + decPart);
   };
@@ -363,11 +367,13 @@ export default function ConfirmDonationModal({
                           <span>
                             {exceedsRailCap
                               ? `BLOCKED · EXCEEDS ${railLabel.toUpperCase()} LIMIT`
-                              : isInvalidOrZero
-                                ? 'INVALID AMOUNT'
-                                : isOverCredit
-                                  ? `AUDIT DISCREPANCY · OVER-CREDIT (+₱${absDiff.toLocaleString()})`
-                                  : `AUDIT DISCREPANCY · SHORTAGE (-₱${absDiff.toLocaleString()})`}
+                              : isExplicitZero
+                                ? 'NO FUNDS RECEIVED (₱0)'
+                                : !hasEntered
+                                  ? 'AMOUNT REQUIRED'
+                                  : isOverCredit
+                                    ? `AUDIT DISCREPANCY · OVER-CREDIT (+₱${absDiff.toLocaleString()})`
+                                    : `AUDIT DISCREPANCY · SHORTAGE (-₱${absDiff.toLocaleString()})`}
                           </span>
                         </span>
                         {!isInvalidOrZero && (
@@ -384,8 +390,14 @@ export default function ConfirmDonationModal({
                               Entered amount exceeds the maximum single-transfer ceiling of{' '}
                               <strong>₱{maxRailCapPhp.toLocaleString()}</strong> for <strong>{railLabel}</strong>. Enter the verified amount within the channel limit or restore the declared figure.
                             </>
+                          ) : isExplicitZero ? (
+                            <>
+                              A <strong>₱0</strong> transfer cannot be approved or recorded on the public ledger. If no funds settled in your official <strong>{railLabel}</strong> account, reject this payment slip instead so the donor is notified and nothing is credited.
+                            </>
                           ) : (
-                            <>Enter a valid received amount greater than <strong>₱0</strong> (up to the <strong>₱{maxRailCapPhp.toLocaleString()}</strong> {railLabel} limit).</>
+                            <>
+                              Enter the verified amount received (greater than <strong>₱0</strong> up to the <strong>₱{maxRailCapPhp.toLocaleString()}</strong> {railLabel} limit), or reject this slip if no funds arrived.
+                            </>
                           )}
                         </p>
                       ) : (
@@ -452,9 +464,19 @@ export default function ConfirmDonationModal({
                       )}
 
                       <div className="cdm-variance-actions">
+                        {isExplicitZero && (
+                          <button
+                            type="button"
+                            className="cdm-restore-btn"
+                            onClick={onReject}
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>gpp_bad</span>
+                            <span>Reject Slip (Not Received)</span>
+                          </button>
+                        )}
                         <button
                           type="button"
-                          className="cdm-restore-btn"
+                          className={`cdm-restore-btn${isExplicitZero ? ' is-secondary' : ''}`}
                           onClick={() => {
                             setConfirmedAmountPhp(String(claimedAmountPhp));
                             setVarianceReason('');
@@ -464,6 +486,16 @@ export default function ConfirmDonationModal({
                           <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>undo</span>
                           <span>Restore ₱{claimedAmountPhp.toLocaleString()}</span>
                         </button>
+                        {!isExplicitZero && !hasEntered && (
+                          <button
+                            type="button"
+                            className="cdm-restore-btn is-secondary"
+                            onClick={onReject}
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>gpp_bad</span>
+                            <span>Reject Slip</span>
+                          </button>
+                        )}
                       </div>
                     </div>
                   )}
@@ -555,13 +587,15 @@ export default function ConfirmDonationModal({
                   <span>
                     {exceedsRailCap
                       ? 'Exceeds Rail Limit'
-                      : isInvalidOrZero
-                        ? 'Invalid Amount'
-                        : isShortage
-                          ? 'Record With Shortage Flag'
-                          : isOverCredit
-                            ? 'Record With Over-Credit Flag'
-                            : 'Confirm & Record'}
+                      : isExplicitZero
+                        ? 'Cannot Record ₱0'
+                        : !hasEntered
+                          ? 'Enter Amount'
+                          : isShortage
+                            ? 'Record With Shortage Flag'
+                            : isOverCredit
+                              ? 'Record With Over-Credit Flag'
+                              : 'Confirm & Record'}
                   </span>
                 </button>
               </div>
