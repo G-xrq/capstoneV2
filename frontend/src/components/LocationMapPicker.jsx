@@ -411,7 +411,8 @@ export default function LocationMapPicker({
         center: initialCoords,
         zoom: 13,
         zoomControl: false,
-        attributionControl: false
+        attributionControl: false,
+        scrollWheelZoom: false
       });
 
       // Bottom-right zoom control matching Relief Radar
@@ -479,7 +480,26 @@ export default function LocationMapPicker({
       resizeObserver.observe(containerRef.current);
     }
 
+    let lastWheelZoomTs = 0;
+    const el = containerRef.current;
+    const handleWheel = (e) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const map = mapRef.current;
+      if (!map) return;
+      e.preventDefault();
+      const now = Date.now();
+      if (now - lastWheelZoomTs < 120) return;
+      lastWheelZoomTs = now;
+      if (e.deltaY < 0) {
+        map.zoomIn();
+      } else if (e.deltaY > 0) {
+        map.zoomOut();
+      }
+    };
+    if (el) el.addEventListener('wheel', handleWheel, { passive: false });
+
     return () => {
+      if (el) el.removeEventListener('wheel', handleWheel);
       if (resizeObserver) resizeObserver.disconnect();
       if (mapRef.current) {
         mapRef.current.remove();

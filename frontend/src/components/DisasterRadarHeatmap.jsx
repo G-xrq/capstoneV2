@@ -1548,6 +1548,7 @@ function DisasterRadarHeatmapInner({
         maxZoom: 17,
         zoomControl: false,
         attributionControl: false,
+        scrollWheelZoom: false,
         fadeAnimation: !reducedMotion,
         zoomAnimation: !reducedMotion,
         markerZoomAnimation: !reducedMotion,
@@ -3275,11 +3276,13 @@ function DisasterRadarHeatmapInner({
     });
   };
 
-  // Manage body scroll lock and Escape key listener for fullscreen mode
+  // Manage body scroll lock, scroll-wheel zoom policy, and Escape key listener for fullscreen mode
   useEffect(() => {
+    const map = mapRef.current;
     if (isFullscreen) {
       document.body.classList.add('radar-fullscreen-active');
       document.body.style.overflow = 'hidden';
+      if (map?.scrollWheelZoom) map.scrollWheelZoom.enable();
       const handleKeyDown = (e) => {
         if (e.key === 'Escape') {
           setIsFullscreen(false);
@@ -3294,6 +3297,7 @@ function DisasterRadarHeatmapInner({
       return () => {
         document.body.classList.remove('radar-fullscreen-active');
         document.body.style.overflow = '';
+        if (mapRef.current?.scrollWheelZoom) mapRef.current.scrollWheelZoom.disable();
         window.removeEventListener('keydown', handleKeyDown);
         [60, 180, 320].forEach(delay => {
           setTimeout(() => {
@@ -3304,12 +3308,36 @@ function DisasterRadarHeatmapInner({
     } else {
       document.body.classList.remove('radar-fullscreen-active');
       document.body.style.overflow = '';
+      if (map?.scrollWheelZoom) map.scrollWheelZoom.disable();
       [60, 180, 320].forEach(delay => {
         setTimeout(() => {
           if (mapRef.current) mapRef.current.invalidateSize();
         }, delay);
       });
     }
+  }, [isFullscreen]);
+
+  // Allow page scrolling over embedded map; zoom only on Ctrl/Cmd + scroll (or trackpad pinch) when not fullscreen
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || isFullscreen) return undefined;
+    let lastWheelZoomTs = 0;
+    const handleWheel = (e) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const map = mapRef.current;
+      if (!map) return;
+      e.preventDefault();
+      const now = Date.now();
+      if (now - lastWheelZoomTs < 120) return;
+      lastWheelZoomTs = now;
+      if (e.deltaY < 0) {
+        map.zoomIn();
+      } else if (e.deltaY > 0) {
+        map.zoomOut();
+      }
+    };
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => el.removeEventListener('wheel', handleWheel);
   }, [isFullscreen]);
 
   // Manage Escape and Arrow keys to navigate/exit lightbox preview or beacon focus mode
