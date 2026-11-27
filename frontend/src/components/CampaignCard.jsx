@@ -2105,8 +2105,11 @@ export default function CampaignCard(props) {
 
   // ── Public Ledger Filters, Search, Rail Aggregations & Telemetry ──
   const ledgerCounts = useMemo(() => {
-    if (!Array.isArray(history)) return { all: 0, onchain: 0, gcash: 0, maya: 0, card: 0, named: 0, guest: 0, anon: 0 };
+    if (!Array.isArray(history)) {
+      return { all: 0, onchain: 0, gcash: 0, maya: 0, card: 0, named: 0, guest: 0, anon: 0, namedTx: 0, guestTx: 0, anonTx: 0 };
+    }
     let onchain = 0, gcash = 0, maya = 0, card = 0;
+    let namedTx = 0, guestTx = 0, anonTx = 0;
     const uniqueNamed = new Set();
     const uniqueGuest = new Set();
     const uniqueAnon = new Set();
@@ -2122,15 +2125,30 @@ export default function CampaignCard(props) {
       const isGuest = Boolean(tx.isGuest || (!tx.donorId && (!tx.wallet || tx.wallet === '' || tx.wallet === '0x0000000000000000000000000000000000000000')));
 
       if (tx.isAnonymous) {
+        anonTx++;
         uniqueAnon.add(tx.txHash || Math.random());
       } else if (isGuest) {
+        guestTx++;
         uniqueGuest.add(tx.txHash || Math.random());
       } else {
+        namedTx++;
         const idKey = tx.donorId ? `id_${tx.donorId}` : (tx.wallet && tx.wallet !== '0x0000000000000000000000000000000000000000' ? tx.wallet.toLowerCase() : tx.donor || Math.random());
         uniqueNamed.add(idKey);
       }
     });
-    return { all: history.length, onchain, gcash, maya, card, named: uniqueNamed.size, guest: uniqueGuest.size, anon: uniqueAnon.size };
+    return {
+      all: history.length,
+      onchain,
+      gcash,
+      maya,
+      card,
+      named: uniqueNamed.size,
+      guest: uniqueGuest.size,
+      anon: uniqueAnon.size,
+      namedTx,
+      guestTx,
+      anonTx
+    };
   }, [history]);
 
   const ledgerTelemetry = useMemo(() => {
@@ -4266,9 +4284,20 @@ export default function CampaignCard(props) {
                 <div className="ledger-kpi-data">
                   <span className="ledger-kpi-label">Unique Contributors</span>
                   <div className="ledger-kpi-value-row">
-                    <span className="ledger-kpi-primary-val">{ledgerTelemetry.uniqueDonors} {ledgerTelemetry.uniqueDonors === 1 ? 'Donor' : 'Donors'}</span>
+                    <span className="ledger-kpi-primary-val">
+                      {ledgerTelemetry.namedCount > 0
+                        ? `${ledgerTelemetry.namedCount} Verified ${ledgerTelemetry.namedCount === 1 ? 'Donor' : 'Donors'}`
+                        : ledgerTelemetry.guestCount > 0
+                          ? `${ledgerTelemetry.guestCount} ${ledgerTelemetry.guestCount === 1 ? 'Guest' : 'Guests'}`
+                          : ledgerTelemetry.anonCount > 0
+                            ? `${ledgerTelemetry.anonCount} Anonymous`
+                            : '0 Donors'}
+                    </span>
                     <span className="ledger-kpi-badge-val">
-                      {ledgerTelemetry.namedCount} Verified · {ledgerTelemetry.guestCount} Guest · {ledgerTelemetry.anonCount} Anon
+                      {[
+                        ledgerTelemetry.guestCount > 0 ? `${ledgerTelemetry.guestCount} Guest` : null,
+                        ledgerTelemetry.anonCount > 0 ? `+ ${ledgerTelemetry.anonCount} Anonymous ${ledgerTelemetry.anonCount === 1 ? 'Gift' : 'Gifts'}` : null
+                      ].filter(Boolean).join(' · ') || (ledgerTelemetry.namedCount > 0 ? 'All Named Contributors' : 'No donations yet')}
                     </span>
                   </div>
                 </div>
@@ -4372,7 +4401,7 @@ export default function CampaignCard(props) {
                       <input
                         type="text"
                         className="ledger-search-input"
-                        placeholder="Search donor, tx hash, wallet, amount..."
+                        placeholder="Search donor, tx hash, amount..."
                         value={ledgerSearch}
                         onChange={(e) => setLedgerSearch(e.target.value)}
                       />
@@ -4388,38 +4417,38 @@ export default function CampaignCard(props) {
                       )}
                     </div>
 
-                    {/* Contributor Identity Segmented Filter */}
+                    {/* Contributor Identity Segmented Filter (counts match exact table rows) */}
                     <div className="ledger-identity-tabs">
                       <button
                         type="button"
                         className={`ledger-id-tab ${ledgerIdentityFilter === 'ALL' ? 'active' : ''}`}
                         onClick={() => setLedgerIdentityFilter('ALL')}
                       >
-                        All Donors
+                        All ({ledgerCounts.all})
                       </button>
                       <button
                         type="button"
                         className={`ledger-id-tab ${ledgerIdentityFilter === 'VERIFIED' ? 'active' : ''}`}
                         onClick={() => setLedgerIdentityFilter('VERIFIED')}
                       >
-                        Verified ({ledgerCounts.named})
+                        Verified ({ledgerCounts.namedTx})
                       </button>
-                      {ledgerCounts.guest > 0 && (
+                      {ledgerCounts.guestTx > 0 && (
                         <button
                           type="button"
                           className={`ledger-id-tab ${ledgerIdentityFilter === 'GUEST' ? 'active' : ''}`}
                           onClick={() => setLedgerIdentityFilter('GUEST')}
                         >
-                          Guest ({ledgerCounts.guest})
+                          Guest ({ledgerCounts.guestTx})
                         </button>
                       )}
-                      {ledgerCounts.anon > 0 && (
+                      {ledgerCounts.anonTx > 0 && (
                         <button
                           type="button"
                           className={`ledger-id-tab ${ledgerIdentityFilter === 'ANON' ? 'active' : ''}`}
                           onClick={() => setLedgerIdentityFilter('ANON')}
                         >
-                          Anonymous ({ledgerCounts.anon})
+                          Anonymous ({ledgerCounts.anonTx})
                         </button>
                       )}
                     </div>
@@ -4839,7 +4868,7 @@ export default function CampaignCard(props) {
                 <span>Decentralized &amp; Cryptographically Audited Ledger</span>
               </div>
               <div className="ledger-footer-actions">
-                <span className="ledger-footer-count">Showing {filteredHistory.length} of {history ? history.length : 0} records</span>
+                <span className="ledger-footer-count">Showing {filteredHistory.length} of {history ? history.length : 0} {(history ? history.length : 0) === 1 ? 'donation' : 'donations'}</span>
                 <button
                   type="button"
                   className="btn btn-outline btn-sm"
