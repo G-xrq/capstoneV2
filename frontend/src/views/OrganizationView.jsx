@@ -1798,7 +1798,7 @@ export default function OrganizationView({
     setRejectionReason('Payment could not be verified in our official account statements.');
   };
 
-  const handleConfirmApproval = async () => {
+  const handleConfirmApproval = async (varianceReasonArg = '') => {
     if (!verifyingDonation) return;
     if (!checkAccountVerified || !checkAmountMatched) {
       showWarning('Please complete both verification checklist items before approving.', 'Audit Checklist Required');
@@ -1819,8 +1819,10 @@ export default function OrganizationView({
       showWarning(`Amount exceeds the maximum single-transfer limit of ₱${maxRailPhp.toLocaleString()} for this channel.`, 'Amount Limit Exceeded');
       return;
     }
-    if (declaredPhpCheck > 0 && numericAmount > declaredPhpCheck + 0.005) {
-      showWarning(`Cannot credit ₱${numericAmount.toLocaleString()} — confirmed amount cannot exceed the donor's declared ₱${declaredPhpCheck.toLocaleString()}. Restore the declared amount or reject this slip.`, 'Over-Credit Blocked');
+    const hasAmountVariance = declaredPhpCheck > 0 && Math.abs(numericAmount - declaredPhpCheck) >= 0.01;
+    const cleanVarianceReason = typeof varianceReasonArg === 'string' ? varianceReasonArg.trim() : '';
+    if (hasAmountVariance && cleanVarianceReason.length < 5) {
+      showWarning('Please provide an audit justification explaining why the credited amount differs from the donor\'s declared figure.', 'Audit Justification Required');
       return;
     }
 
@@ -1837,7 +1839,8 @@ export default function OrganizationView({
         },
         body: JSON.stringify({
           confirmed_amount_php: numericAmount,
-          reference_number: finalRefToSend || undefined
+          reference_number: finalRefToSend || undefined,
+          variance_reason: hasAmountVariance ? cleanVarianceReason : undefined
         })
       });
       const data = await res.json();

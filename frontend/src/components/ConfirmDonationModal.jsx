@@ -20,6 +20,13 @@ export default function ConfirmDonationModal({
   onPreviewReceipt
 }) {
   const [broadcastStep, setBroadcastStep] = useState(1);
+  const [varianceReason, setVarianceReason] = useState('');
+  const [checkVarianceAck, setCheckVarianceAck] = useState(false);
+
+  useEffect(() => {
+    setVarianceReason('');
+    setCheckVarianceAck(false);
+  }, [donation?.Manual_ID]);
 
   useEffect(() => {
     if (!donation || submitting) return;
@@ -59,12 +66,13 @@ export default function ConfirmDonationModal({
   const hasEntered = String(confirmedAmountPhp ?? '').trim() !== '';
   const enteredAmountNum = Number.isFinite(parseFloat(confirmedAmountPhp)) ? parseFloat(confirmedAmountPhp) : 0;
   const diffPhp = enteredAmountNum - claimedAmountPhp;
-  const isOverCredit = claimedAmountPhp > 0 && enteredAmountNum > claimedAmountPhp + 0.005;
   const exceedsRailCap = enteredAmountNum > maxRailCapPhp;
   const isInvalidOrZero = !hasEntered || enteredAmountNum <= 0;
-  const isShortage = claimedAmountPhp > 0 && enteredAmountNum > 0 && diffPhp <= -0.01;
-  const hasVariance = claimedAmountPhp > 0 && (isInvalidOrZero || Math.abs(diffPhp) >= 0.01);
-  const isBlocked = isInvalidOrZero || isOverCredit || exceedsRailCap;
+  const isBlocked = isInvalidOrZero || exceedsRailCap;
+  const isOverCredit = !isBlocked && claimedAmountPhp > 0 && diffPhp >= 0.01;
+  const isShortage = !isBlocked && claimedAmountPhp > 0 && diffPhp <= -0.01;
+  const isAccountableVariance = isShortage || isOverCredit;
+  const hasVariance = isBlocked || isAccountableVariance;
   const absDiff = Math.abs(Math.round(diffPhp * 100) / 100);
 
   const ai = donation.ai_result || {};
@@ -72,7 +80,21 @@ export default function ConfirmDonationModal({
   const hasFlag = flags.length > 0 || ai.isAiVerified === false;
   const aiScore = ai.confidenceScore ? Math.round(ai.confidenceScore) : null;
 
-  const canConfirm = Boolean(checkAccountVerified && checkAmountMatched && !isBlocked);
+  const trimmedVarianceReason = varianceReason.trim();
+  const varianceRequirementMet = !isAccountableVariance || (trimmedVarianceReason.length >= 5 && checkVarianceAck);
+  const canConfirm = Boolean(checkAccountVerified && checkAmountMatched && !isBlocked && varianceRequirementMet);
+
+  const quickVarianceReasons = isShortage
+    ? [
+        'Official statement shows lower amount received',
+        'Donor mistyped receipt amount on submission',
+        'Transfer or bank processing fee was deducted'
+      ]
+    : [
+        'Official statement confirms higher amount received',
+        'Donor under-declared actual transfer amount',
+        'AI OCR misread the receipt amount'
+      ];
   const displayRef = (confirmedRefNo || donation.Reference_Number || ai.extractedRef || '').trim();
   const formattedEntered = Math.round(enteredAmountNum).toLocaleString('en-US');
 
@@ -329,7 +351,10 @@ export default function ConfirmDonationModal({
                   </div>
 
                   {hasVariance && (
-                    <div role="alert" className={`cdm-variance-alert ${isBlocked ? 'is-blocked' : 'is-shortage'}`}>
+                    <div
+                      role="alert"
+                      className={`cdm-variance-alert ${isBlocked ? 'is-blocked' : isOverCredit ? 'is-overcredit' : 'is-shortage'}`}
+                    >
                       <div className="cdm-variance-head">
                         <span className="cdm-variance-badge">
                           <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>
@@ -338,16 +363,16 @@ export default function ConfirmDonationModal({
                           <span>
                             {exceedsRailCap
                               ? `BLOCKED · EXCEEDS ${railLabel.toUpperCase()} LIMIT`
-                              : isOverCredit
-                                ? 'BLOCKED · OVER-CREDIT NOT PERMITTED'
-                                : isInvalidOrZero
-                                  ? 'INVALID AMOUNT'
+                              : isInvalidOrZero
+                                ? 'INVALID AMOUNT'
+                                : isOverCredit
+                                  ? `AUDIT DISCREPANCY · OVER-CREDIT (+₱${absDiff.toLocaleString()})`
                                   : `AUDIT DISCREPANCY · SHORTAGE (-₱${absDiff.toLocaleString()})`}
                           </span>
                         </span>
                         {!isInvalidOrZero && (
                           <span className="cdm-variance-diff-pill">
-                            Declared ₱{claimedAmountPhp.toLocaleString()} → Entered ₱{enteredAmountNum.toLocaleString()}
+                            Declared ₱{claimedAmountPhp.toLocaleString()} → Credited ₱{enteredAmountNum.toLocaleString()}
                           </span>
                         )}
                       </div>
@@ -357,27 +382,72 @@ export default function ConfirmDonationModal({
                           {exceedsRailCap ? (
                             <>
                               Entered amount exceeds the maximum single-transfer ceiling of{' '}
-                              <strong>₱{maxRailCapPhp.toLocaleString()}</strong> for <strong>{railLabel}</strong>.
-                            </>
-                          ) : isOverCredit ? (
-                            <>
-                              To prevent donation inflation and ledger tampering, you cannot credit more than the donor&apos;s declared receipt amount (<strong>₱{claimedAmountPhp.toLocaleString()}</strong>). Restore the declared amount to approve, or reject this slip if the receipt shows a different figure.
+                              <strong>₱{maxRailCapPhp.toLocaleString()}</strong> for <strong>{railLabel}</strong>. Enter the verified amount within the channel limit or restore the declared figure.
                             </>
                           ) : (
-                            <>Enter a valid received amount greater than <strong>₱0</strong> (up to declared <strong>₱{claimedAmountPhp.toLocaleString()}</strong>).</>
+                            <>Enter a valid received amount greater than <strong>₱0</strong> (up to the <strong>₱{maxRailCapPhp.toLocaleString()}</strong> {railLabel} limit).</>
                           )}
                         </p>
                       ) : (
                         <>
                           <p className="cdm-variance-body">
-                            Crediting <strong>₱{enteredAmountNum.toLocaleString()}</strong> instead of declared{' '}
-                            <strong>₱{claimedAmountPhp.toLocaleString()}</strong> triggers mandatory anti-skimming safeguards:
+                            You may adjust the credited figure to match what physically settled in your official {railLabel} statement. Saving{' '}
+                            <strong>₱{enteredAmountNum.toLocaleString()}</strong> instead of declared{' '}
+                            <strong>₱{claimedAmountPhp.toLocaleString()}</strong> triggers mandatory audit safeguards:
                           </p>
                           <ul className="cdm-variance-list">
-                            <li><strong>Permanent Sepolia Flag:</strong> <code>ALERT_SHORTAGE</code> (Declared vs. Credited) is permanently recorded on-chain.</li>
-                            <li><strong>Instant Security Alerts:</strong> Both the donor and BBDRTS Governance Admins are alerted immediately.</li>
-                            <li><strong>Dispute Review:</strong> The donor may file an Audit Dispute requiring your official {railLabel} statement as proof.</li>
+                            <li>
+                              <strong>Permanent Sepolia Flag:</strong>{' '}
+                              <code>{isShortage ? 'ALERT_SHORTAGE' : 'ALERT_OVER_CREDIT'}</code> (Declared vs. Credited) is permanently notarized on-chain.
+                            </li>
+                            <li>
+                              <strong>Instant Security Alerts:</strong> Both the donor and BBDRTS Governance Admins receive your audit note immediately.
+                            </li>
+                            <li>
+                              <strong>Dispute &amp; Statement Review:</strong> The donor may file an Audit Dispute requiring your official {railLabel} statement as proof.
+                            </li>
                           </ul>
+
+                          <div className="cdm-variance-reason-box">
+                            <div className="cdm-variance-reason-head">
+                              <label htmlFor="cdm-variance-reason" className="cdm-variance-reason-label">
+                                Audit Justification <span className="cdm-req">*</span>
+                              </label>
+                              <span className="cdm-variance-reason-count">{varianceReason.length} / 200</span>
+                            </div>
+                            <div className="cdm-variance-chips">
+                              {quickVarianceReasons.map((preset) => (
+                                <button
+                                  key={preset}
+                                  type="button"
+                                  className={`cdm-variance-chip${varianceReason === preset ? ' is-active' : ''}`}
+                                  onClick={() => setVarianceReason(preset)}
+                                >
+                                  {preset}
+                                </button>
+                              ))}
+                            </div>
+                            <input
+                              id="cdm-variance-reason"
+                              type="text"
+                              maxLength={200}
+                              value={varianceReason}
+                              onChange={(e) => setVarianceReason(e.target.value)}
+                              placeholder="Explain why the received amount differs from the donor's declared figure..."
+                              className="cdm-variance-reason-input"
+                            />
+                          </div>
+
+                          <label className={`cdm-variance-ack${checkVarianceAck ? ' is-checked' : ''}`}>
+                            <input
+                              type="checkbox"
+                              checked={checkVarianceAck}
+                              onChange={(e) => setCheckVarianceAck(e.target.checked)}
+                            />
+                            <span>
+                              I acknowledge this {isShortage ? 'shortage' : 'over-credit'} adjustment will be permanently flagged on Sepolia and reported to the donor and Admins.
+                            </span>
+                          </label>
                         </>
                       )}
 
@@ -385,21 +455,15 @@ export default function ConfirmDonationModal({
                         <button
                           type="button"
                           className="cdm-restore-btn"
-                          onClick={() => setConfirmedAmountPhp(String(claimedAmountPhp))}
+                          onClick={() => {
+                            setConfirmedAmountPhp(String(claimedAmountPhp));
+                            setVarianceReason('');
+                            setCheckVarianceAck(false);
+                          }}
                         >
                           <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>undo</span>
                           <span>Restore ₱{claimedAmountPhp.toLocaleString()}</span>
                         </button>
-                        {isOverCredit && (
-                          <button
-                            type="button"
-                            className="cdm-restore-btn is-secondary"
-                            onClick={onReject}
-                          >
-                            <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>close</span>
-                            <span>Reject Slip Instead</span>
-                          </button>
-                        )}
                       </div>
                     </div>
                   )}
@@ -481,21 +545,23 @@ export default function ConfirmDonationModal({
                 </button>
                 <button
                   type="button"
-                  className="cdm-btn-confirm"
-                  onClick={onConfirm}
+                  className={`cdm-btn-confirm${isAccountableVariance && canConfirm ? ' is-flagged' : ''}`}
+                  onClick={() => onConfirm?.(isAccountableVariance ? trimmedVarianceReason : '')}
                   disabled={!canConfirm}
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
-                    {isOverCredit || exceedsRailCap ? 'block' : 'verified'}
+                    {isBlocked ? 'block' : isAccountableVariance ? 'gpp_maybe' : 'verified'}
                   </span>
                   <span>
                     {exceedsRailCap
                       ? 'Exceeds Rail Limit'
-                      : isOverCredit
-                        ? 'Over-Credit Blocked'
+                      : isInvalidOrZero
+                        ? 'Invalid Amount'
                         : isShortage
                           ? 'Record With Shortage Flag'
-                          : 'Confirm & Record'}
+                          : isOverCredit
+                            ? 'Record With Over-Credit Flag'
+                            : 'Confirm & Record'}
                   </span>
                 </button>
               </div>

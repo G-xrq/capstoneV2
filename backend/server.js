@@ -5753,7 +5753,7 @@ app.post('/api/manual-donations/:id/:action', authenticateToken, async (req, res
   if (req.user.role !== 'admin' && req.user.role !== 'organization') return res.status(403).json({ error: 'Access denied.' });
   
   const { id, action } = req.params;
-  const { confirmed_amount_php, reference_number, rejection_reason } = req.body || {};
+  const { confirmed_amount_php, reference_number, rejection_reason, variance_reason } = req.body || {};
   const newStatus = action === 'approve' ? 'Approved' : 'Rejected';
   
   try {
@@ -5800,14 +5800,14 @@ app.post('/api/manual-donations/:id/:action', authenticateToken, async (req, res
           error: `Confirmed amount (₱${creditedPhp.toLocaleString()}) exceeds the maximum single-transfer ceiling of ₱${maxRailCapPhp.toLocaleString()} for ${record.Payment_Method || 'this payment channel'}.`
         });
       }
-      if (declaredPhp > 0 && creditedPhp > declaredPhp + 0.01) {
-        return res.status(400).json({
-          error: `Over-credit blocked: Confirmed amount (₱${creditedPhp.toLocaleString()}) cannot exceed the donor's declared receipt amount (₱${declaredPhp.toLocaleString()}). Restore the declared amount or reject this slip so the donor can resubmit.`
-        });
-      }
-
       const variancePhp = Math.round((creditedPhp - declaredPhp) * 100) / 100;
       const hasVariance = declaredPhp > 0 && Math.abs(variancePhp) >= 0.01;
+      const cleanVarianceReason = String(variance_reason || '').trim().slice(0, 200);
+      if (hasVariance && cleanVarianceReason.length < 5) {
+        return res.status(400).json({
+          error: 'An audit justification (at least 5 characters) is required whenever the confirmed amount differs from the donor\'s declared receipt amount.'
+        });
+      }
 
       // Relay on-chain with full tamper-evident audit trail
       const relayRes = await blockchainRelayer.relayDonation({
@@ -5847,8 +5847,9 @@ app.post('/api/manual-donations/:id/:action', authenticateToken, async (req, res
               : `Discrepancy Alert: Credited ₱${creditedPhp.toLocaleString()} Instead of ₱${declaredPhp.toLocaleString()} (+₱${absDiff.toLocaleString()} Over-Credit)`)
           : `Donation Verified: ₱${creditedPhp.toLocaleString()} via ${record.Payment_Method}`;
 
+        const varianceNoteSuffix = cleanVarianceReason ? ` NGO Audit Note: "${cleanVarianceReason}".` : '';
         const donorMessage = hasVariance
-          ? `ALERT: ${record.Org_Name || 'The NGO'} credited ₱${creditedPhp.toLocaleString()} for "${record.Campaign_Title}", which is ₱${absDiff.toLocaleString()} ${isShortage ? 'LESS' : 'MORE'} than your declared ₱${declaredPhp.toLocaleString()} via ${record.Payment_Method} (Ref: ${finalRef}). This ${isShortage ? 'shortage' : 'over-credit'} has been permanently flagged on Ethereum Sepolia. Open My Contributions to inspect the audit proof or file a formal dispute.`
+          ? `ALERT: ${record.Org_Name || 'The NGO'} credited ₱${creditedPhp.toLocaleString()} for "${record.Campaign_Title}", which is ₱${absDiff.toLocaleString()} ${isShortage ? 'LESS' : 'MORE'} than your declared ₱${declaredPhp.toLocaleString()} via ${record.Payment_Method} (Ref: ${finalRef}).${varianceNoteSuffix} This ${isShortage ? 'shortage' : 'over-credit'} has been permanently flagged on Ethereum Sepolia. Open My Contributions to inspect the audit proof or file a formal dispute.`
           : `${record.Org_Name || 'The NGO'} has verified and confirmed receipt of your contribution for "${record.Campaign_Title}". Amount Credited to Campaign: ₱${creditedPhp.toLocaleString()}. Transaction audited on the blockchain ledger (Ref: ${finalRef}).`;
 
         await sendNotificationToUser({
@@ -5876,7 +5877,7 @@ app.post('/api/manual-donations/:id/:action', authenticateToken, async (req, res
               role: 'admin',
               type: 'SECURITY',
               title: `NGO Credit ${isShortage ? 'Shortage' : 'Over-Credit'} Flagged (${isShortage ? '-' : '+'}₱${absDiff.toLocaleString()})`,
-              message: `${record.Org_Name || 'An NGO'} credited ₱${creditedPhp.toLocaleString()} instead of donor's declared ₱${declaredPhp.toLocaleString()} on "${record.Campaign_Title}" (Ref: ${finalRef}). Permanently sealed on Sepolia (${String(auditHash).slice(0, 12)}...).`,
+              message: `${record.Org_Name || 'An NGO'} credited ₱${creditedPhp.toLocaleString()} instead of donor's declared ₱${declaredPhp.toLocaleString()} on "${record.Campaign_Title}" (Ref: ${finalRef}).${cleanVarianceReason ? ` Audit Note: "${cleanVarianceReason}".` : ''} Permanently sealed on Sepolia (${String(auditHash).slice(0, 12)}...).`,
               referenceId: auditHash,
               referenceType: 'TRANSACTION',
               link: '/admin?tab=finance'
@@ -5903,6 +5904,7 @@ app.post('/api/manual-donations/:id/:action', authenticateToken, async (req, res
           parsedPhp: creditedPhp,
           declaredPhp,
           variancePhp,
+          varianceReason: hasVariance ? cleanVarianceReason : undefined,
           hasVariance,
           txHash: auditHash,
           refNo: finalRef
