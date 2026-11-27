@@ -3592,9 +3592,9 @@ export default function CampaignCard(props) {
                       <div className="drawer-header-left">
                         <div className="drawer-pulse-dot"></div>
                         <span>Funding Sources</span>
-                        <span className="drawer-backers-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>group</span>
-                          <span>{breakdown.totalBackers || 0}</span>
+                        <span className="drawer-backers-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }} title="Total verified donations received">
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>volunteer_activism</span>
+                          <span>{breakdown.totalDonations ?? breakdown.totalBackers ?? 0}</span>
                         </span>
                       </div>
                       <button
@@ -3706,7 +3706,7 @@ export default function CampaignCard(props) {
                   <div className="rpt-header"><span className="rpt-pip" style={{ background: '#38bdf8' }}></span>GCash</div>
                   <div className="rpt-amount" style={{ color: '#38bdf8' }}>₱{breakdown.gcash.php.toLocaleString()}</div>
                   <div className="rpt-sub">Received in Philippine Peso</div>
-                  <div className="rpt-meta">{breakdown.gcash.count || 0} donor{breakdown.gcash.count !== 1 ? 's' : ''} · {gcashShare}% of total</div>
+                  <div className="rpt-meta">{breakdown.gcash.count || 0} donation{breakdown.gcash.count !== 1 ? 's' : ''} · {gcashShare}% of total</div>
                 </div>
               )}
               {hoveredRail === 'maya' && (
@@ -3717,7 +3717,7 @@ export default function CampaignCard(props) {
                   <div className="rpt-header"><span className="rpt-pip" style={{ background: '#10b981' }}></span>Maya</div>
                   <div className="rpt-amount" style={{ color: '#10b981' }}>₱{breakdown.maya.php.toLocaleString()}</div>
                   <div className="rpt-sub">Received in Philippine Peso</div>
-                  <div className="rpt-meta">{breakdown.maya.count || 0} donor{breakdown.maya.count !== 1 ? 's' : ''} · {mayaShare}% of total</div>
+                  <div className="rpt-meta">{breakdown.maya.count || 0} donation{breakdown.maya.count !== 1 ? 's' : ''} · {mayaShare}% of total</div>
                 </div>
               )}
               {hoveredRail === 'bank' && (
@@ -3728,7 +3728,7 @@ export default function CampaignCard(props) {
                   <div className="rpt-header"><span className="rpt-pip" style={{ background: '#a855f7' }}></span>Bank / Card</div>
                   <div className="rpt-amount" style={{ color: '#a855f7' }}>₱{breakdown.bank.php.toLocaleString()}</div>
                   <div className="rpt-sub">Received in Philippine Peso</div>
-                  <div className="rpt-meta">{breakdown.bank.count || 0} deposit{breakdown.bank.count !== 1 ? 's' : ''} · {bankShare}% of total</div>
+                  <div className="rpt-meta">{breakdown.bank.count || 0} donation{breakdown.bank.count !== 1 ? 's' : ''} · {bankShare}% of total</div>
                 </div>
               )}
             </div>
@@ -3749,10 +3749,10 @@ export default function CampaignCard(props) {
                     className="campaign-meta-pill"
                     style={{ cursor: 'pointer' }}
                     onClick={() => setShowRailTelemetry(prev => !prev)}
-                    title={`${totalBackers} unique ${totalBackers === 1 ? 'donor' : 'donors'} (${totalDonations} ${totalDonations === 1 ? 'donation' : 'donations'}) — Click to view payment breakdown`}
+                    title={`${totalDonations} verified ${totalDonations === 1 ? 'donation' : 'donations'} from ${totalBackers} unique ${totalBackers === 1 ? 'donor' : 'donors'} — Click to view payment breakdown`}
                   >
-                    <span className="material-symbols-outlined">group</span>
-                    <span><strong>{totalBackers}</strong> {totalBackers === 1 ? 'donor' : 'donors'}</span>
+                    <span className="material-symbols-outlined">volunteer_activism</span>
+                    <span><strong>{totalDonations}</strong> {totalDonations === 1 ? 'donation' : 'donations'}</span>
                   </span>
 
                   {shortBeneficiaries && (
@@ -4246,12 +4246,12 @@ export default function CampaignCard(props) {
 
               <div className="ledger-kpi-item">
                 <div className="ledger-kpi-icon-wrap kpi-blue">
-                  <span className="material-symbols-outlined">receipt_long</span>
+                  <span className="material-symbols-outlined">volunteer_activism</span>
                 </div>
                 <div className="ledger-kpi-data">
-                  <span className="ledger-kpi-label">Recorded Transactions</span>
+                  <span className="ledger-kpi-label">Donations Received</span>
                   <div className="ledger-kpi-value-row">
-                    <span className="ledger-kpi-primary-val">{ledgerTelemetry.onchainCount + ledgerTelemetry.gatewayCount} {(ledgerTelemetry.onchainCount + ledgerTelemetry.gatewayCount) === 1 ? 'Receipt' : 'Receipts'}</span>
+                    <span className="ledger-kpi-primary-val">{ledgerTelemetry.onchainCount + ledgerTelemetry.gatewayCount} {(ledgerTelemetry.onchainCount + ledgerTelemetry.gatewayCount) === 1 ? 'Donation' : 'Donations'}</span>
                     <span className="ledger-kpi-badge-val">
                       100% Verified &amp; Notarized
                     </span>
@@ -4264,7 +4264,7 @@ export default function CampaignCard(props) {
                   <span className="material-symbols-outlined">groups</span>
                 </div>
                 <div className="ledger-kpi-data">
-                  <span className="ledger-kpi-label">Community Contributors</span>
+                  <span className="ledger-kpi-label">Unique Contributors</span>
                   <div className="ledger-kpi-value-row">
                     <span className="ledger-kpi-primary-val">{ledgerTelemetry.uniqueDonors} {ledgerTelemetry.uniqueDonors === 1 ? 'Donor' : 'Donors'}</span>
                     <span className="ledger-kpi-badge-val">
@@ -7910,9 +7910,11 @@ export default function CampaignCard(props) {
 
                       <div className="cdm-facts-grid">
                         <div className="cdm-fact">
-                          <span className="cdm-fact-label">Community backers</span>
+                          <span className="cdm-fact-label">Donations received</span>
                           <span className="cdm-fact-val">
-                            {breakdown.totalBackers > 0 ? `${breakdown.totalBackers} ${breakdown.totalBackers === 1 ? 'backer' : 'backers'}` : '0 backers'}
+                            {(breakdown.totalDonations ?? breakdown.totalBackers ?? 0) === 1
+                              ? '1 donation'
+                              : `${breakdown.totalDonations ?? breakdown.totalBackers ?? 0} donations`}
                           </span>
                         </div>
                         <div className="cdm-fact">

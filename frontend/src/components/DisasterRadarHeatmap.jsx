@@ -4012,13 +4012,13 @@ function DisasterRadarHeatmapInner({
             const orgName = camp.orgName || camp.org_name || camp.organizationName || camp.beneficiary || 'Verified NGO';
             const urgencyLabel = (camp.urgency || 'HIGH PRIORITY').toUpperCase();
 
-            // Real donors from blockchain and database multi-rail breakdown
-            const realDonors = camp.totalBackers
-              ?? camp.donorsCount
-              ?? camp.donorCount
-              ?? camp.railBreakdown?.totalBackers
+            // Real verified donations received from database multi-rail breakdown
+            const realDonations = camp.donationCount
+              ?? camp.railBreakdown?.totalDonations
+              ?? (((camp.railBreakdown?.eth?.count || 0) + (camp.railBreakdown?.gcash?.count || 0) + (camp.railBreakdown?.maya?.count || 0) + (camp.railBreakdown?.bank?.count || 0)) || null)
+              ?? camp.totalBackers
               ?? (raised > 0 ? 1 : 0);
-            const donorsCount = typeof realDonors === 'number' ? realDonors : (parseInt(realDonors, 10) || 0);
+            const donationsCount = typeof realDonations === 'number' ? realDonations : (parseInt(realDonations, 10) || 0);
 
             // Real beneficiaries directly from database record
             const beneficiaries = camp.beneficiariesImpact
@@ -4156,8 +4156,8 @@ function DisasterRadarHeatmapInner({
 
                     <div className="beacon-quick-stats">
                       <span className="beacon-stat-item">
-                        <span className="material-symbols-outlined">group</span>
-                        {donorsCount} {donorsCount === 1 ? 'donor' : 'donors'}
+                        <span className="material-symbols-outlined">volunteer_activism</span>
+                        {donationsCount} {donationsCount === 1 ? 'donation' : 'donations'}
                       </span>
                       <span className="beacon-stat-sep">·</span>
                       <span className="beacon-stat-item">
