@@ -1805,8 +1805,22 @@ export default function OrganizationView({
       return;
     }
     const numericAmount = parseFloat(confirmedAmountPhp);
-    if (isNaN(numericAmount) || numericAmount <= 0) {
+    if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
       showWarning('Please enter a valid received amount in PHP.', 'Invalid Amount');
+      return;
+    }
+    const rawDeclared = parseFloat(verifyingDonation.Amount || 0);
+    const declaredPhpCheck = Number(verifyingDonation.Amount_PHP || verifyingDonation.amountPhp) > 0
+      ? Math.round(Number(verifyingDonation.Amount_PHP || verifyingDonation.amountPhp))
+      : (rawDeclared > 100 ? Math.round(rawDeclared) : Math.round(rawDeclared * 170000));
+    const railUpper = String(verifyingDonation.Payment_Method || '').toUpperCase();
+    const maxRailPhp = (railUpper.includes('GCASH') || railUpper.includes('MAYA')) ? 500000 : 5000000;
+    if (numericAmount > maxRailPhp) {
+      showWarning(`Amount exceeds the maximum single-transfer limit of ₱${maxRailPhp.toLocaleString()} for this channel.`, 'Amount Limit Exceeded');
+      return;
+    }
+    if (declaredPhpCheck > 0 && numericAmount > declaredPhpCheck + 0.005) {
+      showWarning(`Cannot credit ₱${numericAmount.toLocaleString()} — confirmed amount cannot exceed the donor's declared ₱${declaredPhpCheck.toLocaleString()}. Restore the declared amount or reject this slip.`, 'Over-Credit Blocked');
       return;
     }
 
@@ -8847,157 +8861,175 @@ export default function OrganizationView({
         onPreviewReceipt={(payload) => setProofPreviewModalImg(payload)}
       />
 
-      {/* ── Rejection Modal with Reason Selection ── */}
-      {rejectingDonation && createPortal(
-        <div
-          className="modal-overlay fade-in"
-          onClick={() => !rejectingSubmitting && setRejectingDonation(null)}
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            width: '100vw',
-            height: '100vh',
-            background: 'rgba(5, 7, 12, 0.85)',
-            backdropFilter: 'blur(10px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 99999,
-            padding: '16px'
-          }}
-        >
+      {/* ── Reject Payment Slip Modal (Dual-Theme Geist) ── */}
+      {rejectingDonation && createPortal((() => {
+        const rejRawAmt = parseFloat(rejectingDonation.Amount || 0);
+        const rejClaimedPhp = Number(rejectingDonation.Amount_PHP || rejectingDonation.amountPhp) > 0
+          ? Math.round(Number(rejectingDonation.Amount_PHP || rejectingDonation.amountPhp))
+          : (rejRawAmt > 100 ? Math.round(rejRawAmt) : Math.round(rejRawAmt * 170000));
+        const rejRef = (rejectingDonation.Reference_Number || rejectingDonation.ai_result?.extractedRef || '').trim();
+        const presetReasons = [
+          'Payment not received in official organization account statements',
+          'Receipt screenshot is unreadable, blurry, or missing key details',
+          'Amount on receipt does not match the claimed donation',
+          'Duplicate or expired transaction receipt slip'
+        ];
+        return (
           <div
-            className="card bounce-in"
-            onClick={e => e.stopPropagation()}
-            style={{
-              width: '540px',
-              maxWidth: '95vw',
-              background: 'var(--bg-card, #131622)',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
-              borderRadius: '18px',
-              boxShadow: '0 25px 60px -12px rgba(0, 0, 0, 0.85)',
-              color: 'var(--text-primary, #ffffff)',
-              padding: '24px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '16px'
-            }}
+            className="cdm-overlay"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Reject Payment Slip"
+            onClick={() => !rejectingSubmitting && setRejectingDonation(null)}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '10px',
-                background: 'rgba(239, 68, 68, 0.15)',
-                border: '1px solid rgba(239, 68, 68, 0.3)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#ef4444'
-              }}>
-                <span className="material-symbols-outlined" style={{ fontSize: '22px' }}>warning</span>
+            <div className="rsm-dialog" onClick={(e) => e.stopPropagation()}>
+              {/* Header */}
+              <div className="rsm-header">
+                <div className="rsm-header-left">
+                  <div className="rsm-header-icon" aria-hidden="true">
+                    <span className="material-symbols-outlined">gpp_bad</span>
+                  </div>
+                  <div>
+                    <h3 className="rsm-title">Reject Payment Slip</h3>
+                    <p className="rsm-subtitle">
+                      Choose a clear audit reason to notify the donor and keep records accurate.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="cdm-close-btn"
+                  onClick={() => !rejectingSubmitting && setRejectingDonation(null)}
+                  disabled={rejectingSubmitting}
+                  aria-label="Close rejection modal"
+                  title="Close"
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
+                </button>
               </div>
-              <div>
-                <div style={{ fontWeight: 800, fontSize: '1.08rem' }}>Reject Payment Slip</div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                  Provide an audit reason to notify the donor.
+
+              {/* Body */}
+              <div className="rsm-body">
+                {/* Structured Summary Grid */}
+                <div className="rsm-summary-grid">
+                  <div className="rsm-summary-cell">
+                    <span className="rsm-cell-lbl">Donor</span>
+                    <span className="rsm-cell-val" title={rejectingDonation.Donor_Name || 'Anonymous Supporter'}>
+                      {rejectingDonation.Donor_Name || 'Anonymous Supporter'}
+                    </span>
+                  </div>
+                  <div className="rsm-summary-cell">
+                    <span className="rsm-cell-lbl">Channel &amp; Claimed</span>
+                    <span className="rsm-cell-val is-mono">
+                      {rejectingDonation.Payment_Method || 'Direct Transfer'} · ₱{rejClaimedPhp.toLocaleString('en-US')}
+                    </span>
+                  </div>
+                  <div className="rsm-summary-cell">
+                    <span className="rsm-cell-lbl">Campaign</span>
+                    <span className="rsm-cell-val" title={rejectingDonation.Campaign_Title || ''}>
+                      {rejectingDonation.Campaign_Title || 'Relief Campaign'}
+                    </span>
+                  </div>
+                  <div className="rsm-summary-cell">
+                    <span className="rsm-cell-lbl">Reference No.</span>
+                    <span className="rsm-cell-val is-mono">{rejRef || 'Not provided'}</span>
+                  </div>
+                </div>
+
+                {/* Preset Reason Selector */}
+                <div className="rsm-section">
+                  <div className="rsm-section-head">
+                    <label className="rsm-label">Select Reason for Rejection</label>
+                    <span className="rsm-hint">Quick audit presets</span>
+                  </div>
+                  <div className="rsm-reason-list" role="radiogroup" aria-label="Rejection reason">
+                    {presetReasons.map((reasonText) => {
+                      const isSelected = rejectionReason.trim() === reasonText;
+                      return (
+                        <button
+                          key={reasonText}
+                          type="button"
+                          role="radio"
+                          aria-checked={isSelected}
+                          className={`rsm-reason-opt${isSelected ? ' is-selected' : ''}`}
+                          onClick={() => setRejectionReason(reasonText)}
+                        >
+                          <span className="rsm-radio-dot" aria-hidden="true">
+                            {isSelected && <span className="material-symbols-outlined">check</span>}
+                          </span>
+                          <span className="rsm-reason-text">{reasonText}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Detailed Audit Note */}
+                <div className="rsm-section">
+                  <div className="rsm-section-head">
+                    <label htmlFor="rsm-audit-note" className="rsm-label">
+                      Detailed Audit Note for Donor <span className="cdm-req">*</span>
+                    </label>
+                    <span className="rsm-hint">{rejectionReason.length} / 300</span>
+                  </div>
+                  <textarea
+                    id="rsm-audit-note"
+                    rows={3}
+                    maxLength={300}
+                    className="rsm-textarea"
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    placeholder="Select a preset above or explain specifically what the donor should correct before resubmitting..."
+                  />
+                </div>
+
+                <div className="rsm-impact-note">
+                  <span className="material-symbols-outlined">info</span>
+                  <span>
+                    The donor will receive this audit note and may resubmit a corrected receipt. No funds will be credited to the campaign.
+                  </span>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="rsm-footer">
+                <button
+                  type="button"
+                  className="cdm-btn-cancel"
+                  onClick={() => {
+                    const cur = rejectingDonation;
+                    setRejectingDonation(null);
+                    handleOpenVerification(cur);
+                  }}
+                  disabled={rejectingSubmitting}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>arrow_back</span>
+                  <span>Back to Verify</span>
+                </button>
+                <div className="cdm-footer-right">
+                  <button
+                    type="button"
+                    className="cdm-btn-cancel"
+                    onClick={() => setRejectingDonation(null)}
+                    disabled={rejectingSubmitting}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="rsm-btn-confirm"
+                    onClick={handleConfirmRejection}
+                    disabled={!rejectionReason.trim() || rejectingSubmitting}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>block</span>
+                    <span>{rejectingSubmitting ? 'Rejecting...' : 'Confirm Rejection'}</span>
+                  </button>
                 </div>
               </div>
             </div>
-
-            <div style={{
-              background: 'rgba(255, 255, 255, 0.03)',
-              borderRadius: '10px',
-              padding: '10px 14px',
-              fontSize: '0.8rem',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '4px'
-            }}>
-              <div><strong>Donor:</strong> {rejectingDonation.Donor_Name || 'Anonymous'}</div>
-              <div><strong>Rail:</strong> {rejectingDonation.Payment_Method} · <strong>Claimed:</strong> ₱{Math.round(parseFloat(rejectingDonation.Amount || 0) * 170000).toLocaleString()}</div>
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: '6px' }}>
-                Select Reason for Rejection:
-              </label>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {[
-                  'Payment not received in official organization account statements',
-                  'Receipt screenshot is unreadable, blurry, or missing key details',
-                  'Amount on receipt does not match the claimed donation',
-                  'Duplicate or expired transaction receipt slip'
-                ].map(r => (
-                  <button
-                    key={r}
-                    type="button"
-                    onClick={() => setRejectionReason(r)}
-                    style={{
-                      textAlign: 'left',
-                      padding: '8px 12px',
-                      borderRadius: '8px',
-                      border: rejectionReason === r ? '1px solid #ef4444' : '1px solid var(--border, rgba(255,255,255,0.08))',
-                      background: rejectionReason === r ? 'rgba(239, 68, 68, 0.12)' : 'rgba(255,255,255,0.02)',
-                      color: rejectionReason === r ? '#fff' : 'var(--text-secondary)',
-                      fontSize: '0.78rem',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {r}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: '6px' }}>
-                Detailed Audit Note for Donor:
-              </label>
-              <textarea
-                rows={3}
-                value={rejectionReason}
-                onChange={e => setRejectionReason(e.target.value)}
-                placeholder="Explain why this payment slip could not be confirmed..."
-                style={{
-                  width: '100%',
-                  background: 'var(--bg-input, rgba(30, 41, 59, 0.8))',
-                  border: '1px solid var(--border, rgba(255, 255, 255, 0.15))',
-                  borderRadius: '10px',
-                  padding: '10px',
-                  color: '#fff',
-                  fontSize: '0.82rem',
-                  resize: 'none',
-                  outline: 'none',
-                  boxSizing: 'border-box'
-                }}
-              />
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '6px' }}>
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                onClick={() => setRejectingDonation(null)}
-                disabled={rejectingSubmitting}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn btn-sm"
-                style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '8px 18px', fontWeight: 700 }}
-                onClick={handleConfirmRejection}
-                disabled={!rejectionReason.trim() || rejectingSubmitting}
-              >
-                {rejectingSubmitting ? 'Rejecting...' : 'Confirm Rejection'}
-              </button>
-            </div>
           </div>
-        </div>,
-        document.body
-      )}
+        );
+      })(), document.body)}
 
       {/* Interactive Guided Onboarding Spotlight Tour */}
       <GuidedTour

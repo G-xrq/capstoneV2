@@ -5790,6 +5790,22 @@ app.post('/api/manual-donations/:id/:action', authenticateToken, async (req, res
 
       const declaredPhp = Math.round((parseFloat(record.Amount) || 0) * 170000 * 100) / 100;
       const creditedPhp = Math.round(parsedPhp * 100) / 100;
+      const maxRailCapPhp = (cleanMethod.includes('GCASH') || cleanMethod.includes('MAYA')) ? 500000 : 5000000;
+
+      if (!Number.isFinite(creditedPhp) || creditedPhp <= 0) {
+        return res.status(400).json({ error: 'Confirmed received amount must be greater than ₱0.' });
+      }
+      if (creditedPhp > maxRailCapPhp) {
+        return res.status(400).json({
+          error: `Confirmed amount (₱${creditedPhp.toLocaleString()}) exceeds the maximum single-transfer ceiling of ₱${maxRailCapPhp.toLocaleString()} for ${record.Payment_Method || 'this payment channel'}.`
+        });
+      }
+      if (declaredPhp > 0 && creditedPhp > declaredPhp + 0.01) {
+        return res.status(400).json({
+          error: `Over-credit blocked: Confirmed amount (₱${creditedPhp.toLocaleString()}) cannot exceed the donor's declared receipt amount (₱${declaredPhp.toLocaleString()}). Restore the declared amount or reject this slip so the donor can resubmit.`
+        });
+      }
+
       const variancePhp = Math.round((creditedPhp - declaredPhp) * 100) / 100;
       const hasVariance = declaredPhp > 0 && Math.abs(variancePhp) >= 0.01;
 

@@ -55,11 +55,16 @@ export default function ConfirmDonationModal({
     ? Math.round(Number(donation.Amount_PHP || donation.amountPhp))
     : (rawAmt > 100 ? Math.round(rawAmt) : Math.round(rawAmt * 170000));
 
+  const maxRailCapPhp = (isGcash || isMaya) ? 500000 : 5000000;
   const hasEntered = String(confirmedAmountPhp ?? '').trim() !== '';
-  const enteredAmountNum = parseFloat(confirmedAmountPhp) || 0;
+  const enteredAmountNum = Number.isFinite(parseFloat(confirmedAmountPhp)) ? parseFloat(confirmedAmountPhp) : 0;
   const diffPhp = enteredAmountNum - claimedAmountPhp;
-  const hasVariance = claimedAmountPhp > 0 && (!hasEntered || Math.abs(diffPhp) >= 0.01);
-  const isShortage = diffPhp < 0;
+  const isOverCredit = claimedAmountPhp > 0 && enteredAmountNum > claimedAmountPhp + 0.005;
+  const exceedsRailCap = enteredAmountNum > maxRailCapPhp;
+  const isInvalidOrZero = !hasEntered || enteredAmountNum <= 0;
+  const isShortage = claimedAmountPhp > 0 && enteredAmountNum > 0 && diffPhp <= -0.01;
+  const hasVariance = claimedAmountPhp > 0 && (isInvalidOrZero || Math.abs(diffPhp) >= 0.01);
+  const isBlocked = isInvalidOrZero || isOverCredit || exceedsRailCap;
   const absDiff = Math.abs(Math.round(diffPhp * 100) / 100);
 
   const ai = donation.ai_result || {};
@@ -67,9 +72,17 @@ export default function ConfirmDonationModal({
   const hasFlag = flags.length > 0 || ai.isAiVerified === false;
   const aiScore = ai.confidenceScore ? Math.round(ai.confidenceScore) : null;
 
-  const canConfirm = Boolean(checkAccountVerified && checkAmountMatched && enteredAmountNum > 0);
+  const canConfirm = Boolean(checkAccountVerified && checkAmountMatched && !isBlocked);
   const displayRef = (confirmedRefNo || donation.Reference_Number || ai.extractedRef || '').trim();
   const formattedEntered = Math.round(enteredAmountNum).toLocaleString('en-US');
+
+  const handleAmountChange = (rawVal) => {
+    const cleaned = String(rawVal ?? '').replace(/[^0-9.]/g, '');
+    const parts = cleaned.split('.');
+    const intPart = (parts[0] || '').slice(0, 7); // Max 7 integer digits (up to ₱9,999,999)
+    const decPart = parts.length > 1 ? '.' + parts.slice(1).join('').slice(0, 2) : '';
+    setConfirmedAmountPhp(intPart + decPart);
+  };
 
   return createPortal(
     <div
@@ -302,40 +315,91 @@ export default function ConfirmDonationModal({
                     <span className={`cdm-input-prefix${hasVariance ? ' is-error' : ''}`}>₱</span>
                     <input
                       id="cdm-amount-input"
-                      type="number"
-                      step="any"
-                      min="1"
+                      type="text"
+                      inputMode="decimal"
                       value={confirmedAmountPhp}
-                      onChange={(e) => setConfirmedAmountPhp(e.target.value)}
-                      placeholder="e.g. 500"
+                      onKeyDown={(e) => {
+                        if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault();
+                      }}
+                      onChange={(e) => handleAmountChange(e.target.value)}
+                      placeholder={String(claimedAmountPhp || 100)}
                       className={`cdm-input is-amount${hasVariance ? ' is-error' : ''}`}
                     />
                     <span className="cdm-input-suffix">PHP</span>
                   </div>
 
                   {hasVariance && (
-                    <div role="alert" className="cdm-variance-alert">
-                      <span
-                        className="material-symbols-outlined"
-                        style={{ color: '#ef4444', fontSize: '17px', marginTop: '1px', flexShrink: 0 }}
-                      >
-                        warning
-                      </span>
-                      <div style={{ flex: 1 }}>
-                        <div className="cdm-variance-title">
-                          Amount Variance ({isShortage ? `-₱${absDiff.toLocaleString()}` : `+₱${absDiff.toLocaleString()}`} · {isShortage ? 'Shortage' : 'Over-Credit'})
-                        </div>
-                        <div>
-                          Crediting <strong>₱{enteredAmountNum.toLocaleString()}</strong> instead of declared{' '}
-                          <strong>₱{claimedAmountPhp.toLocaleString()}</strong> will be permanently recorded in the public audit trail.
-                        </div>
+                    <div role="alert" className={`cdm-variance-alert ${isBlocked ? 'is-blocked' : 'is-shortage'}`}>
+                      <div className="cdm-variance-head">
+                        <span className="cdm-variance-badge">
+                          <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>
+                            {isBlocked ? 'block' : 'gpp_maybe'}
+                          </span>
+                          <span>
+                            {exceedsRailCap
+                              ? `BLOCKED · EXCEEDS ${railLabel.toUpperCase()} LIMIT`
+                              : isOverCredit
+                                ? 'BLOCKED · OVER-CREDIT NOT PERMITTED'
+                                : isInvalidOrZero
+                                  ? 'INVALID AMOUNT'
+                                  : `AUDIT DISCREPANCY · SHORTAGE (-₱${absDiff.toLocaleString()})`}
+                          </span>
+                        </span>
+                        {!isInvalidOrZero && (
+                          <span className="cdm-variance-diff-pill">
+                            Declared ₱{claimedAmountPhp.toLocaleString()} → Entered ₱{enteredAmountNum.toLocaleString()}
+                          </span>
+                        )}
+                      </div>
+
+                      {isBlocked ? (
+                        <p className="cdm-variance-body">
+                          {exceedsRailCap ? (
+                            <>
+                              Entered amount exceeds the maximum single-transfer ceiling of{' '}
+                              <strong>₱{maxRailCapPhp.toLocaleString()}</strong> for <strong>{railLabel}</strong>.
+                            </>
+                          ) : isOverCredit ? (
+                            <>
+                              To prevent donation inflation and ledger tampering, you cannot credit more than the donor&apos;s declared receipt amount (<strong>₱{claimedAmountPhp.toLocaleString()}</strong>). Restore the declared amount to approve, or reject this slip if the receipt shows a different figure.
+                            </>
+                          ) : (
+                            <>Enter a valid received amount greater than <strong>₱0</strong> (up to declared <strong>₱{claimedAmountPhp.toLocaleString()}</strong>).</>
+                          )}
+                        </p>
+                      ) : (
+                        <>
+                          <p className="cdm-variance-body">
+                            Crediting <strong>₱{enteredAmountNum.toLocaleString()}</strong> instead of declared{' '}
+                            <strong>₱{claimedAmountPhp.toLocaleString()}</strong> triggers mandatory anti-skimming safeguards:
+                          </p>
+                          <ul className="cdm-variance-list">
+                            <li><strong>Permanent Sepolia Flag:</strong> <code>ALERT_SHORTAGE</code> (Declared vs. Credited) is permanently recorded on-chain.</li>
+                            <li><strong>Instant Security Alerts:</strong> Both the donor and BBDRTS Governance Admins are alerted immediately.</li>
+                            <li><strong>Dispute Review:</strong> The donor may file an Audit Dispute requiring your official {railLabel} statement as proof.</li>
+                          </ul>
+                        </>
+                      )}
+
+                      <div className="cdm-variance-actions">
                         <button
                           type="button"
                           className="cdm-restore-btn"
                           onClick={() => setConfirmedAmountPhp(String(claimedAmountPhp))}
                         >
-                          Restore ₱{claimedAmountPhp.toLocaleString()}
+                          <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>undo</span>
+                          <span>Restore ₱{claimedAmountPhp.toLocaleString()}</span>
                         </button>
+                        {isOverCredit && (
+                          <button
+                            type="button"
+                            className="cdm-restore-btn is-secondary"
+                            onClick={onReject}
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>close</span>
+                            <span>Reject Slip Instead</span>
+                          </button>
+                        )}
                       </div>
                     </div>
                   )}
@@ -421,8 +485,18 @@ export default function ConfirmDonationModal({
                   onClick={onConfirm}
                   disabled={!canConfirm}
                 >
-                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>verified</span>
-                  <span>Confirm &amp; Record</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
+                    {isOverCredit || exceedsRailCap ? 'block' : 'verified'}
+                  </span>
+                  <span>
+                    {exceedsRailCap
+                      ? 'Exceeds Rail Limit'
+                      : isOverCredit
+                        ? 'Over-Credit Blocked'
+                        : isShortage
+                          ? 'Record With Shortage Flag'
+                          : 'Confirm & Record'}
+                  </span>
                 </button>
               </div>
             </div>
