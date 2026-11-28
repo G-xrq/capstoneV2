@@ -21,6 +21,7 @@ import FilterableExportModal from '../components/FilterableExportModal';
 import OfficialAuditVoucherModal from '../components/OfficialAuditVoucherModal';
 import ConfirmDonationModal from '../components/ConfirmDonationModal';
 import ProofPreviewModal from '../components/ProofPreviewModal';
+import PageGuideButton from '../components/PageGuideButton';
 import OrgDisputesPanel from '../components/OrgDisputesPanel';
 import GeistSelect, { GeistMultiSelect } from '../components/GeistSelect';
 import { useToast } from '../context/ToastContext';
@@ -2944,6 +2945,7 @@ export default function OrganizationView({
                   <h2 className="admin-page-title">
                     <span className="material-symbols-outlined icon" style={{ color: 'var(--text-primary)' }}>space_dashboard</span>
                     <span>{wt.orgOverviewTitle}</span>
+                    <PageGuideButton guideKey="ngo.dashboard" />
                   </h2>
                   <p className="admin-page-sub">
                     {wt.orgOverviewSub}
@@ -3453,6 +3455,7 @@ export default function OrganizationView({
                 <h2 className="admin-page-title">
                   <span className="material-symbols-outlined icon" style={{ color: 'var(--text-primary)' }}>public</span>
                   <span>All Relief Campaigns</span>
+                  <PageGuideButton guideKey="ngo.allCampaigns" />
                 </h2>
                 <p className="admin-page-sub">
                   Public ledger view of all active disaster relief and charitable aid campaigns across the network.
@@ -3773,6 +3776,7 @@ export default function OrganizationView({
                 <h2 className="admin-page-title">
                   <span className="material-symbols-outlined icon" style={{ color: 'var(--text-primary)' }}>campaign</span>
                   <span>My Campaigns</span>
+                  <PageGuideButton guideKey="ngo.myCampaigns" />
                 </h2>
                 <p className="admin-page-sub">
                   Relief operations deployed under {orgDisplayName || 'your organization'} ({shortAddr(walletAddress)}).
@@ -4112,6 +4116,7 @@ export default function OrganizationView({
                 <h2 className="admin-page-title">
                   <span className="material-symbols-outlined icon" style={{ color: 'var(--text-primary)' }}>rocket_launch</span>
                   <span>Create Campaign</span>
+                  <PageGuideButton guideKey="ngo.create" />
                 </h2>
                 <p className="admin-page-sub">
                   Launch a verified disaster relief or community campaign under <strong>{orgDisplayName || 'your organization'}</strong>.
@@ -5952,6 +5957,7 @@ export default function OrganizationView({
                 <h2 className="admin-page-title">
                   <span className="material-symbols-outlined icon" style={{ color: 'var(--text-primary)' }}>receipt_long</span>
                   <span>Donation Ledger</span>
+                  <PageGuideButton guideKey="ngo.ledger" />
                 </h2>
                 <p className="admin-page-sub">
                   Audited transaction receipts and payment verifications for {orgDisplayName || 'your organization'}.
@@ -7404,6 +7410,7 @@ export default function OrganizationView({
                   <h2 className="admin-page-title">
                     <span className="material-symbols-outlined icon" style={{ color: 'var(--text-primary)' }}>verified_user</span>
                     <span>SEC Accreditation &amp; KYC</span>
+                    <PageGuideButton guideKey="ngo.secKyc" />
                   </h2>
                   <p className="admin-page-sub">
                     Manage Philippine non-profit legal credentials (SEC RA 11232, BIR, DSWD) and signatory KYC documents for relief campaign deployment.
@@ -8317,6 +8324,7 @@ export default function OrganizationView({
                 <h2 className="admin-page-title">
                   <span className="material-symbols-outlined icon" style={{ color: 'var(--text-primary)' }}>radar</span>
                   <span>{wt.reliefRadar}</span>
+                  <PageGuideButton guideKey="ngo.radar" />
                 </h2>
                 <p className="admin-page-sub">
                   {wt.radarSub}

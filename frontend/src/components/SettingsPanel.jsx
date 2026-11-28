@@ -5,6 +5,7 @@ import { ROLES, ROLE_META } from '../roleConfig';
 import { contractAddress } from '../contractConfig';
 import { shortAddr } from './CampaignCard';
 import { useToast } from '../context/ToastContext';
+import PageGuideButton from './PageGuideButton';
 import EditProfileModal from './EditProfileModal';
 import DonorBadge, { getDonorTier } from './DonorBadge';
 import { formatPhoneNumber } from '../utils/formatters';
@@ -1226,6 +1227,7 @@ export default function SettingsPanel({
           <h2 className="admin-page-title">
             <span className="material-symbols-outlined icon" style={{ color: 'var(--text-primary)' }}>settings</span>
             <span>{pageTitle || 'Profile & Settings'}</span>
+            <PageGuideButton guideKey="shared.settings" />
           </h2>
           <p className="admin-page-sub">
             Manage your profile identity, workspace preferences, account security, and blockchain audit ledger.

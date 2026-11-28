@@ -15,6 +15,7 @@ import {
   exportStructuredJson,
   exportPrintablePdfReport
 } from '../utils/reportExporter';
+import PageGuideButton from './PageGuideButton';
 import './AnalyticsReportsPanel.css';
 
 const RANGE_OPTIONS = [
@@ -201,6 +202,7 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
           <h2 className="admin-page-title">
             <span className="material-symbols-outlined icon" style={{ color: 'var(--text-primary)' }}>analytics</span>
             <span>{isAdmin ? 'Analytics & Reports' : 'Analytics & Reports'}</span>
+            <PageGuideButton guideKey="shared.analytics" />
           </h2>
           <p className="admin-page-sub">
             {isAdmin

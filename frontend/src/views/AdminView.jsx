@@ -20,6 +20,7 @@ import AdminActiveUsersPanel from '../components/AdminActiveUsersPanel';
 import AdminDonorsPanel from '../components/AdminDonorsPanel';
 import AdminDisputesPanel from '../components/AdminDisputesPanel';
 import AnalyticsReportsPanel from '../components/AnalyticsReportsPanel';
+import PageGuideButton from '../components/PageGuideButton';
 import {
   exportAdminActivityLogsCsv,
   exportAdminActivityLogsExcel,
@@ -1925,7 +1926,8 @@ export default function AdminView({
                 <div className="admin-page-title-wrap">
                   <h2 className="admin-page-title">
                     <span className="material-symbols-outlined" style={{ fontSize: '24px', color: '#10b981' }}>space_dashboard</span>
-                    Dashboard Overview
+                    <span>Dashboard Overview</span>
+                    <PageGuideButton guideKey="admin.dashboard" />
                   </h2>
                   <p className="admin-page-sub">
                     Executive oversight of multi-rail relief capital, compliance audits, and blockchain protocol health.
@@ -2294,7 +2296,8 @@ export default function AdminView({
                 <div className="admin-page-title-wrap">
                   <h2 className="admin-page-title">
                     <span className="material-symbols-outlined" style={{ fontSize: '24px', color: '#10b981' }}>history</span>
-                    System Activity Logs
+                    <span>System Activity Logs</span>
+                    <PageGuideButton guideKey="admin.monitoring" />
                   </h2>
                   <p className="admin-page-sub">
                     Centralized, tamper-proof audit trail capturing user authentication, campaign lifecycle, receipt validations, and regulatory governance.
@@ -3395,7 +3398,8 @@ export default function AdminView({
                 <div className="admin-page-title-wrap">
                   <h2 className="admin-page-title">
                     <span className="material-symbols-outlined" style={{ fontSize: '24px', color: '#38bdf8' }}>receipt_long</span>
-                    Financial Ledger
+                    <span>Financial Ledger</span>
+                    <PageGuideButton guideKey="admin.finance" />
                   </h2>
                   <p className="admin-page-sub">
                     Reconciled Philippine payment ledger spanning GCash, Maya, Card, and Bank donations notarized gaslessly on Ethereum Sepolia.
@@ -3834,7 +3838,8 @@ export default function AdminView({
                 <div className="admin-page-title-wrap">
                   <h2 className="admin-page-title">
                     <span className="material-symbols-outlined" style={{ fontSize: '24px', color: '#10b981' }}>local_shipping</span>
-                    Disbursement &amp; Procurement
+                    <span>Disbursement &amp; Procurement</span>
+                    <PageGuideButton guideKey="admin.disbursements" />
                   </h2>
                   <p className="admin-page-sub">
                     Audit NGO escrow drawdowns, monitor aid allocation shares (food, medical, shelter), and verify supplier invoices, beneficiary counts, and photographic delivery manifests.
@@ -4082,7 +4087,8 @@ export default function AdminView({
                     <div className="admin-page-title-wrap">
                       <h2 className="admin-page-title">
                         <span className="material-symbols-outlined" style={{ fontSize: '24px', color: '#ef4444' }}>gavel</span>
-                        Donation Audit Disputes
+                        <span>Donation Audit Disputes</span>
+                        <PageGuideButton guideKey="admin.disputes" />
                       </h2>
                       <p className="admin-page-sub">
                         Investigate donor-reported credit shortages and over-credits against on-chain Sepolia records and issue governance resolutions.
@@ -4138,7 +4144,8 @@ export default function AdminView({
                 <div className="admin-page-title-wrap">
                   <h2 className="admin-page-title">
                     <span className="material-symbols-outlined" style={{ fontSize: '24px', color: 'var(--accent, #10b981)' }}>campaign</span>
-                    All Campaigns
+                    <span>All Campaigns</span>
+                    <PageGuideButton guideKey="admin.campaigns" />
                   </h2>
                   <p className="admin-page-sub">
                     Monitor active and concluded humanitarian relief campaigns, track on-chain fundraising quotas against real-time collections, and drill into financial audit trails.
@@ -4400,7 +4407,8 @@ export default function AdminView({
                 <div className="admin-page-title-wrap">
                   <h2 className="admin-page-title">
                     <span className="material-symbols-outlined" style={{ fontSize: '24px', color: '#10b981' }}>radar</span>
-                    Relief Radar
+                    <span>Relief Radar</span>
+                    <PageGuideButton guideKey="admin.radar" />
                   </h2>
                   <p className="admin-page-sub">
                     Real-time geographic distribution of active typhoon, flood, and seismic relief appeals across all 17 Philippine regions.
@@ -4429,7 +4437,8 @@ export default function AdminView({
                 <div className="admin-page-title-wrap">
                   <h2 className="admin-page-title">
                     <span className="material-symbols-outlined" style={{ fontSize: '24px', color: '#38bdf8' }}>group</span>
-                    Donor Accounts &amp; Credential Recovery
+                    <span>Donor Accounts &amp; Credential Recovery</span>
+                    <PageGuideButton guideKey="admin.donors" />
                   </h2>
                   <p className="admin-page-sub">
                     Manage registered donor accounts, inspect lockout status, and execute audited password resets when donors require access recovery.
@@ -4484,7 +4493,8 @@ export default function AdminView({
                 <div className="admin-page-title-wrap">
                   <h2 className="admin-page-title">
                     <span className="material-symbols-outlined" style={{ fontSize: '24px', color: '#f59e0b' }}>hourglass_top</span>
-                    KYC Approval
+                    <span>KYC Approval</span>
+                    <PageGuideButton guideKey="admin.kyc" />
                   </h2>
                   <p className="admin-page-sub">
                     Cross-examine Philippine SEC non-stock corporate registration certificates, DSWD charity permits, and Board of Trustees before cryptographically enrolling entities on-chain.
@@ -4742,7 +4752,8 @@ export default function AdminView({
                 <div className="admin-page-title-wrap">
                   <h2 className="admin-page-title">
                     <span className="material-symbols-outlined" style={{ fontSize: '24px', color: '#a855f7' }}>corporate_fare</span>
-                    Accredited NGOs
+                    <span>Accredited NGOs</span>
+                    <PageGuideButton guideKey="admin.accreditedNgos" />
                   </h2>
                   <p className="admin-page-sub">
                     Non-profit entities verified through SEC regulatory compliance and enrolled on the Ethereum Sepolia smart contract with cryptographic authority to publish relief operations.

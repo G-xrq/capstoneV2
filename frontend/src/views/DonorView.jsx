@@ -20,6 +20,7 @@ import SettingsPanel from '../components/SettingsPanel';
 import DisasterRadarHeatmap from '../components/DisasterRadarHeatmap';
 import DonorBadge, { DonorTierModal, DonorProgressCard, BadgeUpgradeModal, getDonorTier, globalDonorRegistry } from '../components/DonorBadge';
 import GuidedTour from '../components/GuidedTour';
+import PageGuideButton from '../components/PageGuideButton';
 import SidebarToggleIcon from '../components/SidebarToggleIcon';
 import DisbursementProofModal from '../components/DisbursementProofModal';
 import FileDisputeModal from '../components/FileDisputeModal';
@@ -1189,6 +1190,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                   <h2 className="admin-page-title">
                     <span className="material-symbols-outlined icon" style={{ color: 'var(--text-primary)' }}>space_dashboard</span>
                     <span>{wt.dashboardOverview}</span>
+                    <PageGuideButton guideKey="donor.dashboard" />
                   </h2>
                   <p className="admin-page-sub">
                     {wt.donorOverviewSub}
@@ -1686,6 +1688,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                   <h2 className="admin-page-title">
                     <span className="material-symbols-outlined icon" style={{ color: 'var(--text-primary)' }}>explore</span>
                     <span>{wt.exploreCampaigns}</span>
+                    <PageGuideButton guideKey="donor.campaigns" />
                   </h2>
                   <p className="admin-page-sub">
                     {wt.allCampaignsSub}
@@ -2115,6 +2118,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                   <h2 className="admin-page-title">
                     <span className="material-symbols-outlined icon" style={{ color: 'var(--text-primary)' }}>receipt_long</span>
                     <span>{wt.myContributions}</span>
+                    <PageGuideButton guideKey="donor.donations" />
                   </h2>
                   <p className="admin-page-sub">
                     {wt.contributionsSub}
@@ -3174,6 +3178,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                   <h2 className="admin-page-title">
                     <span className="material-symbols-outlined icon" style={{ color: 'var(--text-primary)' }}>radar</span>
                     <span>{wt.reliefRadar}</span>
+                    <PageGuideButton guideKey="donor.radar" />
                   </h2>
                   <p className="admin-page-sub">
                     {wt.radarSub}
