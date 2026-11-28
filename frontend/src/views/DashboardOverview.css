@@ -6856,8 +6856,7 @@
 }
 
 /* ============================================================
-   UNIFIED ORGANIZATION PROFILE HERO (ATMOSPHERIC BANNER + STAT DECK)
-   Seamless banner-to-surface fade so bright logos never clash on Dark Mode
+   UNIFIED ORGANIZATION PROFILE HERO (CRISP COVER + IDENTITY BAND + KPI DECK)
    ============================================================ */
 .dbo-org-hero-card {
   position: relative;
@@ -6866,35 +6865,38 @@
   background: var(--bg-card, #ffffff);
   overflow: hidden;
   margin-bottom: 26px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 [data-theme="dark"] .dbo-org-hero-card {
-  border-color: #232326;
+  border-color: #222226;
   background: #0a0a0c;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
 }
 
 .dbo-org-cover-strip {
   position: relative;
   width: 100%;
-  height: 168px;
+  height: 184px;
   background-color: var(--bg-subcard, #f4f4f5);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
   overflow: hidden;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 [data-theme="dark"] .dbo-org-cover-strip {
   background-color: #0e0e11;
+  border-bottom-color: rgba(255, 255, 255, 0.06);
 }
 
-/* Gentle dark-mode brightness & contrast tempering so bright white banners blend cleanly */
+/* Subtle dark-mode ambient temper (keeps custom banners crisp & vibrant instead of muddy gray) */
 [data-theme="dark"] .dbo-org-cover-strip.has-image::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: rgba(10, 10, 12, 0.44);
-  backdrop-filter: saturate(0.85);
+  background: rgba(9, 9, 11, 0.14);
   pointer-events: none;
   z-index: 0;
 }
@@ -6909,7 +6911,7 @@
   background-image: url('/donor-hero-mesh-dark.png');
 }
 
-/* Smooth bottom melt right into the card body (zero harsh horizontal seam!) */
+/* Clean bottom-edge vignette so the cover settles naturally without swallowing the artwork */
 .dbo-org-cover-scrim {
   position: absolute;
   inset: 0;
@@ -6917,9 +6919,9 @@
   background: linear-gradient(
     180deg,
     rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.12) 48%,
-    rgba(255, 255, 255, 0.78) 82%,
-    var(--bg-card, #ffffff) 100%
+    rgba(255, 255, 255, 0) 64%,
+    rgba(255, 255, 255, 0.42) 90%,
+    rgba(255, 255, 255, 0.85) 100%
   );
   pointer-events: none;
 }
@@ -6927,10 +6929,10 @@
 [data-theme="dark"] .dbo-org-cover-scrim {
   background: linear-gradient(
     180deg,
-    rgba(10, 10, 12, 0.14) 0%,
-    rgba(10, 10, 12, 0.42) 48%,
-    rgba(10, 10, 12, 0.86) 82%,
-    #0a0a0c 100%
+    rgba(10, 10, 12, 0.08) 0%,
+    rgba(10, 10, 12, 0.04) 55%,
+    rgba(10, 10, 12, 0.52) 86%,
+    rgba(10, 10, 12, 0.92) 100%
   );
 }
 
@@ -6941,19 +6943,19 @@
   z-index: 3;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 5px 11px;
-  border-radius: 7px;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.18);
-  background: rgba(10, 10, 12, 0.65);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(9, 9, 11, 0.58);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
   color: #f4f4f5;
   font-size: 0.72rem;
   font-weight: 600;
   cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.18s ease, background 0.15s ease, border-color 0.15s ease;
+  opacity: 0.78;
+  transition: opacity 0.16s ease, background 0.15s ease, border-color 0.15s ease;
 }
 
 .dbo-org-hero-card:hover .dbo-org-cover-edit,
@@ -6962,37 +6964,159 @@
 }
 
 .dbo-org-cover-edit:hover {
-  background: rgba(10, 10, 12, 0.88);
+  background: rgba(9, 9, 11, 0.84);
   border-color: rgba(255, 255, 255, 0.36);
 }
 
+/* Solid Identity Band Below the Cover (Only the Avatar Straddles the Boundary) */
 .dbo-org-hero-body {
   position: relative;
   z-index: 2;
-  padding: 0 24px 20px;
-  margin-top: -34px;
+  padding: 0 26px 22px;
+  margin-top: 0;
 }
 
 .dbo-org-identity-row {
   margin-bottom: 0 !important;
-  align-items: flex-end !important;
+  align-items: flex-start !important;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.dbo-org-identity-wrap {
+  align-items: flex-start !important;
   gap: 16px;
 }
 
 .dbo-org-overlap-avatar {
-  width: 66px;
-  height: 66px;
-  border-radius: 16px;
-  border: 3px solid var(--bg-card, #ffffff);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
-  background: var(--bg-card, #ffffff);
+  width: 76px;
+  height: 76px;
+  margin-top: -38px;
+  border-radius: 18px;
+  border: 4px solid var(--bg-card, #ffffff);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(0, 0, 0, 0.06);
+  background: #ffffff;
   position: relative;
-  z-index: 3;
+  z-index: 4;
+  flex-shrink: 0;
 }
 
 [data-theme="dark"] .dbo-org-overlap-avatar {
   border-color: #0a0a0c;
-  background: #111114;
+  background: #ffffff;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.dbo-org-title-block {
+  padding-top: 14px;
+  min-width: 0;
+}
+
+.dbo-org-title-block .dbo-hero-name-row {
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.dbo-org-title {
+  font-size: 1.62rem !important;
+  letter-spacing: -0.035em !important;
+  line-height: 1.15 !important;
+}
+
+.dbo-org-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+}
+
+.dbo-org-status-chip.is-verified {
+  background: rgba(16, 185, 129, 0.1);
+  color: #047857;
+  border: 1px solid rgba(16, 185, 129, 0.24);
+}
+
+[data-theme="dark"] .dbo-org-status-chip.is-verified {
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.dbo-org-status-chip.is-pending {
+  background: rgba(245, 158, 11, 0.12);
+  color: #b45309;
+  border: 1px solid rgba(245, 158, 11, 0.28);
+}
+
+[data-theme="dark"] .dbo-org-status-chip.is-pending {
+  background: rgba(245, 158, 11, 0.14);
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.28);
+}
+
+.dbo-org-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.dbo-org-subtitle {
+  font-size: 0.83rem !important;
+  line-height: 1.45 !important;
+}
+
+/* Uniform 36px Command Cluster */
+.dbo-org-action-cluster {
+  padding-top: 14px;
+  gap: 8px !important;
+  align-items: center;
+}
+
+.dbo-org-cta,
+.dbo-org-btn,
+.dbo-org-btn-ghost {
+  height: 36px !important;
+  border-radius: 8px !important;
+  font-size: 0.81rem !important;
+}
+
+.dbo-org-cta {
+  padding: 0 15px !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.dbo-org-btn {
+  padding: 0 13px !important;
+}
+
+.dbo-org-btn-ghost {
+  padding: 0 12px !important;
+  background: transparent !important;
+  border-color: transparent !important;
+  color: var(--text-secondary, #52525b) !important;
+}
+
+.dbo-org-btn-ghost:hover {
+  background: var(--bg-inset, #f4f4f5) !important;
+  border-color: var(--border, #e4e4e7) !important;
+  color: var(--text-primary, #09090b) !important;
+}
+
+[data-theme="dark"] .dbo-org-btn-ghost {
+  color: #a1a1aa !important;
+}
+
+[data-theme="dark"] .dbo-org-btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-color: #27272a !important;
+  color: #ffffff !important;
 }
 
 .dbo-org-hero-body .dbo-pending-banner {
@@ -7000,47 +7124,228 @@
   margin-bottom: 0;
 }
 
-/* Bottom Hairline 4-Column Stat Deck Inside the Unified Hero Card */
+/* Integrated 4-Column Editorial KPI Deck */
 .dbo-org-stats-deck {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   border-top: 1px solid var(--border, #e4e4e7);
-  border-bottom: none !important;
-  margin-top: 0 !important;
   background: var(--bg-subcard, #fafafa);
-  padding: 0 8px;
 }
 
 [data-theme="dark"] .dbo-org-stats-deck {
-  border-top-color: #1f1f22;
-  background: rgba(255, 255, 255, 0.015);
+  border-top-color: #1e1e22;
+  background: rgba(255, 255, 255, 0.016);
 }
 
-.dbo-org-stats-deck .dbo-bare-stat {
-  padding: 16px 18px;
+.dbo-org-kpi {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 18px 22px;
+  background: transparent;
+  border: none;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+  min-width: 0;
+  transition: background 0.16s ease;
+}
+
+.dbo-org-kpi + .dbo-org-kpi {
+  border-left: 1px solid var(--border, #e4e4e7);
+}
+
+[data-theme="dark"] .dbo-org-kpi + .dbo-org-kpi {
+  border-left-color: #1e1e22;
+}
+
+.dbo-org-kpi:hover {
+  background: rgba(9, 9, 11, 0.03);
+}
+
+[data-theme="dark"] .dbo-org-kpi:hover {
+  background: rgba(255, 255, 255, 0.032);
+}
+
+.dbo-org-kpi-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dbo-org-kpi-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.74rem;
+  font-weight: 500;
+  color: var(--text-muted, #71717a);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+[data-theme="dark"] .dbo-org-kpi-label {
+  color: #8f8f99;
+}
+
+.dbo-org-kpi-icon {
+  font-size: 15px !important;
+  opacity: 0.82;
+  flex-shrink: 0;
+}
+
+.dbo-org-kpi-arrow {
+  font-size: 14px !important;
+  color: var(--text-muted, #71717a);
+  opacity: 0;
+  transform: translate(-2px, 2px);
+  transition: opacity 0.16s ease, transform 0.16s ease;
+  flex-shrink: 0;
+}
+
+.dbo-org-kpi:hover .dbo-org-kpi-arrow,
+.dbo-org-kpi:focus-visible .dbo-org-kpi-arrow {
+  opacity: 0.85;
+  transform: translate(0, 0);
+}
+
+.dbo-org-kpi-val {
+  font-size: 1.52rem;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.15;
+  color: var(--text-primary, #09090b);
+  font-variant-numeric: tabular-nums;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+[data-theme="dark"] .dbo-org-kpi-val {
+  color: #fafafa;
+}
+
+.dbo-org-kpi-val--status {
+  font-size: 1.32rem;
+  font-weight: 650;
+  letter-spacing: -0.025em;
+  min-height: 28px;
+}
+
+.dbo-org-kpi-val--status.is-approved {
+  color: #059669;
+}
+
+[data-theme="dark"] .dbo-org-kpi-val--status.is-approved {
+  color: #34d399;
+}
+
+.dbo-org-kpi-val--status.is-pending {
+  color: #d97706;
+}
+
+[data-theme="dark"] .dbo-org-kpi-val--status.is-pending {
+  color: #fbbf24;
+}
+
+.dbo-org-kpi-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.16);
+  flex-shrink: 0;
+}
+
+.dbo-org-kpi-val--status.is-pending .dbo-org-kpi-status-dot {
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.18);
+}
+
+.dbo-org-kpi-sub {
+  font-size: 0.73rem;
+  font-weight: 500;
+  color: var(--text-muted, #71717a);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+[data-theme="dark"] .dbo-org-kpi-sub {
+  color: #71717a;
+}
+
+.dbo-org-kpi-sub--split {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.dbo-org-kpi-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  flex-shrink: 0;
+}
+
+.dbo-org-kpi-sep {
+  opacity: 0.5;
+}
+
+@media (max-width: 960px) {
+  .dbo-org-stats-deck {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .dbo-org-kpi:nth-child(3) {
+    border-left: none;
+  }
+  .dbo-org-kpi:nth-child(3),
+  .dbo-org-kpi:nth-child(4) {
+    border-top: 1px solid var(--border, #e4e4e7);
+  }
+  [data-theme="dark"] .dbo-org-kpi:nth-child(3),
+  [data-theme="dark"] .dbo-org-kpi:nth-child(4) {
+    border-top-color: #1e1e22;
+  }
 }
 
 @media (max-width: 720px) {
   .dbo-org-cover-strip {
-    height: 120px;
+    height: 132px;
   }
   .dbo-org-cover-edit {
     opacity: 1;
   }
   .dbo-org-hero-body {
-    padding: 0 16px 16px;
-    margin-top: -26px;
-  }
-  .dbo-org-identity-row {
-    align-items: flex-start !important;
+    padding: 0 16px 18px;
   }
   .dbo-org-overlap-avatar {
-    width: 54px;
-    height: 54px;
-    border-radius: 13px;
+    width: 60px;
+    height: 60px;
+    margin-top: -30px;
+    border-radius: 14px;
+    border-width: 3px;
   }
-  .dbo-org-stats-deck {
-    padding: 0;
+  .dbo-org-title-block {
+    padding-top: 10px;
   }
-  .dbo-org-stats-deck .dbo-bare-stat {
-    padding: 13px 12px;
+  .dbo-org-title {
+    font-size: 1.35rem !important;
+  }
+  .dbo-org-action-cluster {
+    padding-top: 4px;
+    width: 100%;
+  }
+  .dbo-org-kpi {
+    padding: 14px 16px;
+  }
+  .dbo-org-kpi-val {
+    font-size: 1.32rem;
   }
 }

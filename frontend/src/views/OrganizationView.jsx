@@ -2953,7 +2953,7 @@ export default function OrganizationView({
                 </div>
               </div>
 
-              {/* ── 1. Unified Organization Profile Hero (Atmospheric Banner + Identity + Hairline Stat Deck) ── */}
+              {/* ── 1. Unified Organization Profile Hero (Crisp Cover + Clean Identity Band + Editorial KPI Deck) ── */}
               <div className="dbo-org-hero-card" id="tour-ngo-welcome">
                 {(() => {
                   const rawBanner = currentUser?.banner_url || '';
@@ -2989,19 +2989,19 @@ export default function OrganizationView({
 
                 <div className="dbo-hero-content dbo-org-hero-body">
                   <div className="dbo-hero-main-row dbo-org-identity-row">
-                    <div className="dbo-hero-identity" id="tour-ngo-identity">
+                    <div className="dbo-hero-identity dbo-org-identity-wrap" id="tour-ngo-identity">
                       <div className="dbo-hero-avatar dbo-org-overlap-avatar">
                         {currentUser?.avatar_url && (currentUser.avatar_url.startsWith('data:') || currentUser.avatar_url.startsWith('http')) ? (
                           <img src={currentUser.avatar_url} alt="Profile" />
                         ) : currentUser?.avatar_url && currentUser.avatar_url.length < 30 ? (
-                          <span className="material-symbols-outlined" style={{ fontSize: '24px', color: 'var(--text-primary)' }}>{currentUser.avatar_url}</span>
+                          <span className="material-symbols-outlined" style={{ fontSize: '26px', color: 'var(--text-primary)' }}>{currentUser.avatar_url}</span>
                         ) : (
                           orgInitials
                         )}
                       </div>
-                      <div className="dbo-hero-title-group">
+                      <div className="dbo-hero-title-group dbo-org-title-block">
                         <div className="dbo-hero-name-row">
-                          <h1 className="dbo-hero-name">{orgDisplayName || 'Organization Dashboard'}</h1>
+                          <h1 className="dbo-hero-name dbo-org-title">{orgDisplayName || 'Organization Dashboard'}</h1>
                           {isSecApproved && (
                             <span
                               className="material-symbols-outlined dbo-hero-verified-icon"
@@ -3011,8 +3011,12 @@ export default function OrganizationView({
                               verified
                             </span>
                           )}
+                          <span className={`dbo-org-status-chip ${isSecApproved ? 'is-verified' : 'is-pending'}`}>
+                            <span className="dbo-org-status-dot" aria-hidden="true" />
+                            <span>{isSecApproved ? 'Verified NGO' : 'KYC Pending'}</span>
+                          </span>
                         </div>
-                        <p className="dbo-hero-sub">
+                        <p className="dbo-hero-sub dbo-org-subtitle">
                           {isSecApproved
                             ? 'SEC-accredited relief operations notarized gaslessly on Ethereum Sepolia.'
                             : 'Complete SEC accreditation to unlock verified relief campaign deployment.'}
@@ -3020,10 +3024,10 @@ export default function OrganizationView({
                       </div>
                     </div>
 
-                    <div className="dbo-hero-actions" id="tour-ngo-actions">
+                    <div className="dbo-hero-actions dbo-org-action-cluster" id="tour-ngo-actions">
                       <button
                         type="button"
-                        className="dbo-cmd-btn dbo-cmd-btn--primary"
+                        className="dbo-cmd-btn dbo-cmd-btn--primary dbo-org-cta"
                         onClick={() => setActiveTab('create')}
                         title="Deploy a new disaster relief or charitable campaign"
                       >
@@ -3033,7 +3037,7 @@ export default function OrganizationView({
 
                       <button
                         type="button"
-                        className="dbo-cmd-btn"
+                        className="dbo-cmd-btn dbo-org-btn"
                         onClick={() => setActiveTab('analytics')}
                         title="View fundraising analytics and export reports"
                       >
@@ -3046,7 +3050,7 @@ export default function OrganizationView({
                           href="https://sepolia.etherscan.io"
                           target="_blank"
                           rel="noreferrer"
-                          className="dbo-cmd-ghost"
+                          className="dbo-cmd-btn dbo-org-btn-ghost"
                           title="View Sepolia network explorer"
                         >
                           <span>{wt.publicLedger}</span>
@@ -3079,76 +3083,90 @@ export default function OrganizationView({
                       </button>
                     </div>
                   )}
-
                 </div>
 
-                {/* Integrated Bottom Hairline Stat Deck */}
-                <div className="dbo-bare-stats cols-4 dbo-org-stats-deck" id="tour-ngo-metrics">
-                    <button
-                      type="button"
-                      className="dbo-bare-stat clickable"
-                      onClick={() => setActiveTab('analytics')}
-                      title="Inspect mobilized aid telemetry and channel breakdown"
-                    >
-                      <span className="dbo-bare-icon-box" aria-hidden="true">
-                        <span className="material-symbols-outlined">payments</span>
+                {/* Integrated 4-Column Editorial KPI Deck */}
+                <div className="dbo-org-stats-deck" id="tour-ngo-metrics">
+                  <button
+                    type="button"
+                    className="dbo-org-kpi"
+                    onClick={() => setActiveTab('analytics')}
+                    title="Inspect mobilized aid telemetry and channel breakdown"
+                  >
+                    <span className="dbo-org-kpi-head">
+                      <span className="dbo-org-kpi-label">
+                        <span className="material-symbols-outlined dbo-org-kpi-icon" aria-hidden="true">payments</span>
+                        <span>Total Aid Mobilized</span>
                       </span>
-                      <span className="dbo-bare-text">
-                        <LiveCounter value={totalRaisedPhp} prefix="₱" duration={1050} className="dbo-bare-val" />
-                        <span className="dbo-bare-lbl">Total Aid Mobilized</span>
-                      </span>
-                    </button>
+                      <span className="material-symbols-outlined dbo-org-kpi-arrow" aria-hidden="true">north_east</span>
+                    </span>
+                    <LiveCounter value={totalRaisedPhp} prefix="₱" duration={1050} className="dbo-org-kpi-val" />
+                    <span className="dbo-org-kpi-sub">
+                      {totalTargetPhp > 0 ? `${overallFundingPct}% of combined relief goals` : 'Verified on-chain volume'}
+                    </span>
+                  </button>
 
-                    <button
-                      type="button"
-                      className="dbo-bare-stat clickable"
-                      onClick={() => setActiveTab('my-campaigns')}
-                      title="Manage your deployed relief operations"
-                    >
-                      <span className="dbo-bare-icon-box" aria-hidden="true">
-                        <span className="material-symbols-outlined">rocket_launch</span>
+                  <button
+                    type="button"
+                    className="dbo-org-kpi"
+                    onClick={() => setActiveTab('my-campaigns')}
+                    title="Manage your deployed relief operations"
+                  >
+                    <span className="dbo-org-kpi-head">
+                      <span className="dbo-org-kpi-label">
+                        <span className="material-symbols-outlined dbo-org-kpi-icon" aria-hidden="true">rocket_launch</span>
+                        <span>Relief Campaigns</span>
                       </span>
-                      <span className="dbo-bare-text">
-                        <LiveCounter value={myCampaigns.length} duration={850} className="dbo-bare-val" />
-                        <span className="dbo-bare-lbl">
-                          {activeOpsCount} active · {concludedOpsCount} concluded
-                        </span>
-                      </span>
-                    </button>
+                      <span className="material-symbols-outlined dbo-org-kpi-arrow" aria-hidden="true">north_east</span>
+                    </span>
+                    <LiveCounter value={myCampaigns.length} duration={850} className="dbo-org-kpi-val" />
+                    <span className="dbo-org-kpi-sub dbo-org-kpi-sub--split">
+                      <span className="dbo-org-kpi-live-dot" aria-hidden="true" />
+                      <span>{activeOpsCount} active</span>
+                      <span className="dbo-org-kpi-sep" aria-hidden="true">·</span>
+                      <span>{concludedOpsCount} concluded</span>
+                    </span>
+                  </button>
 
-                    <button
-                      type="button"
-                      className="dbo-bare-stat clickable"
-                      onClick={() => setActiveTab('ledger')}
-                      title="Open immutable donation ledger"
-                    >
-                      <span className="dbo-bare-icon-box" aria-hidden="true">
-                        <span className="material-symbols-outlined">receipt_long</span>
+                  <button
+                    type="button"
+                    className="dbo-org-kpi"
+                    onClick={() => setActiveTab('ledger')}
+                    title="Open immutable donation ledger"
+                  >
+                    <span className="dbo-org-kpi-head">
+                      <span className="dbo-org-kpi-label">
+                        <span className="material-symbols-outlined dbo-org-kpi-icon" aria-hidden="true">receipt_long</span>
+                        <span>Donations Received</span>
                       </span>
-                      <span className="dbo-bare-text">
-                        <LiveCounter value={donationsCount} duration={850} className="dbo-bare-val" />
-                        <span className="dbo-bare-lbl">Donations Received</span>
-                      </span>
-                    </button>
+                      <span className="material-symbols-outlined dbo-org-kpi-arrow" aria-hidden="true">north_east</span>
+                    </span>
+                    <LiveCounter value={donationsCount} duration={850} className="dbo-org-kpi-val" />
+                    <span className="dbo-org-kpi-sub">Immutable ledger receipts</span>
+                  </button>
 
-                    <button
-                      type="button"
-                      className="dbo-bare-stat clickable"
-                      onClick={() => { fetchKycData(); setActiveTab('sec-kyc'); }}
-                      title="Review SEC accreditation and KYC registry"
-                    >
-                      <span className="dbo-bare-icon-box" aria-hidden="true">
-                        <span className="material-symbols-outlined" style={{ color: isSecApproved ? '#10b981' : '#f59e0b' }}>
+                  <button
+                    type="button"
+                    className="dbo-org-kpi"
+                    onClick={() => { fetchKycData(); setActiveTab('sec-kyc'); }}
+                    title="Review SEC accreditation and KYC registry"
+                  >
+                    <span className="dbo-org-kpi-head">
+                      <span className="dbo-org-kpi-label">
+                        <span className="material-symbols-outlined dbo-org-kpi-icon" aria-hidden="true">
                           {isSecApproved ? 'verified_user' : 'hourglass_top'}
                         </span>
+                        <span>SEC Legal Standing</span>
                       </span>
-                      <span className="dbo-bare-text">
-                        <span className="dbo-bare-val dbo-bare-val--tier" style={{ color: isSecApproved ? '#10b981' : '#f59e0b' }}>
-                          <span>{isSecApproved ? 'Accredited' : 'Pending'}</span>
-                          <span className="material-symbols-outlined" style={{ fontSize: '14px', opacity: 0.6 }}>north_east</span>
-                        </span>
-                        <span className="dbo-bare-lbl">SEC Legal Standing</span>
-                      </span>
+                      <span className="material-symbols-outlined dbo-org-kpi-arrow" aria-hidden="true">north_east</span>
+                    </span>
+                    <span className={`dbo-org-kpi-val dbo-org-kpi-val--status ${isSecApproved ? 'is-approved' : 'is-pending'}`}>
+                      <span className="dbo-org-kpi-status-dot" aria-hidden="true" />
+                      <span>{isSecApproved ? 'Accredited' : 'Pending'}</span>
+                    </span>
+                    <span className="dbo-org-kpi-sub">
+                      {isSecApproved ? 'Active SEC & KYC registry' : 'Submit docs to unlock'}
+                    </span>
                   </button>
                 </div>
               </div>
