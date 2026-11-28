@@ -2051,7 +2051,7 @@ export default function AdminView({
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
 
                 {/* Left Column: Recent Financial Ledger Activity */}
-                <div className="vercel-admin-card padded">
+                <div className="vercel-admin-card padded" id="guide-admin-recent-tx">
                   <div className="admin-card-header">
                     <div className="admin-card-title-wrap">
                       <h3 className="admin-card-title">
@@ -2123,7 +2123,7 @@ export default function AdminView({
                 </div>
 
                 {/* Right Column: Pending Regulatory KYC Queue */}
-                <div className="vercel-admin-card padded">
+                <div className="vercel-admin-card padded" id="guide-admin-kyc-queue">
                   <div className="admin-card-header">
                     <div className="admin-card-title-wrap">
                       <h3 className="admin-card-title">
@@ -2187,7 +2187,7 @@ export default function AdminView({
               </div>
 
               {/* Bottom: Recent System Activity Logs */}
-              <div className="vercel-admin-card padded">
+              <div className="vercel-admin-card padded" id="guide-admin-recent-logs">
                 <div className="admin-card-header">
                   <div className="admin-card-title-wrap">
                     <h3 className="admin-card-title">

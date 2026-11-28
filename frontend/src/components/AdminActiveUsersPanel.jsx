@@ -6,6 +6,7 @@ import { getLiveSessionId } from '../hooks/useLivePresence';
 import { useRealtimeSync } from '../hooks/useRealtimeSync';
 import '../views/VercelAdminTables.css';
 import GeistSelect from './GeistSelect';
+import PageGuideButton from './PageGuideButton';
 import './AdminActiveUsersPanel.css';
 
 function formatElapsed(ms) {
@@ -333,7 +334,8 @@ export default function AdminActiveUsersPanel({ onPresenceSummaryChange }) {
         <div className="admin-page-title-wrap">
           <h2 className="admin-page-title">
             <span className="material-symbols-outlined" style={{ fontSize: '24px', color: '#10b981' }}>sensors</span>
-            Live Active Users
+            <span>Live Active Users</span>
+            <PageGuideButton guideKey="admin.activeUsers" />
             <span className={`presence-stream-pill ${autoRefresh ? 'is-live' : 'is-paused'}`}>
               <span className="presence-pulse-dot" />
               {autoRefresh ? 'LIVE · 5s' : 'PAUSED'}

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { API_URL } from '../config';
 import { useRealtimeSync } from '../hooks/useRealtimeSync';
 import { useToast } from '../context/ToastContext';
+import PageGuideButton from './PageGuideButton';
 import '../views/VercelAdminTables.css';
 import './AdminBroadcastPanel.css';
 
@@ -177,7 +178,8 @@ export default function AdminBroadcastPanel({ onActiveCountChange }) {
         <div className="admin-page-title-wrap">
           <h2 className="admin-page-title">
             <span className="material-symbols-outlined" style={{ fontSize: '24px', color: '#10b981' }}>podcasts</span>
-            Broadcast &amp; Alerts
+            <span>Broadcast &amp; Alerts</span>
+            <PageGuideButton guideKey="admin.broadcast" />
           </h2>
           <p className="admin-page-sub">
             Publish real-time disaster warnings, platform status alerts, and relief milestone advisories visible across all platform views.

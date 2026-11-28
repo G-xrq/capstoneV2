@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { API_URL } from '../config';
 import { useRealtimeSync } from '../hooks/useRealtimeSync';
 import { useToast } from '../context/ToastContext';
+import PageGuideButton from './PageGuideButton';
 import CustomDateTimePicker from './CustomDateTimePicker';
 import '../views/VercelAdminTables.css';
 import './AdminMaintenancePanel.css';
@@ -550,7 +551,8 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
         <div className="admin-page-title-wrap">
           <h2 className="admin-page-title">
             <span className="material-symbols-outlined" style={{ fontSize: '24px', color: '#f59e0b' }}>settings_backup_restore</span>
-            System Operations
+            <span>System Operations</span>
+            <PageGuideButton guideKey="admin.systemOps" />
           </h2>
           <p className="admin-page-sub">
             Generate full off-chain database snapshots for regulatory compliance and configure granular maintenance safeguards with zero donor confusion.
