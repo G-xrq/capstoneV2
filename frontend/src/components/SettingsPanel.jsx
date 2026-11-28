@@ -950,6 +950,12 @@ export default function SettingsPanel({
       const cropResult = await autoCropQrScreenshot(file);
       const { croppedUrl, wasCropped } = cropResult;
       setNewQrImage(croppedUrl);
+      if (cropResult.emvRecipientName) {
+        setNewQrAccountName(cropResult.emvRecipientName);
+      }
+      if (cropResult.emvAccountNumber) {
+        setNewQrAccountNumber(formatPhoneNumber(cropResult.emvAccountNumber));
+      }
 
       setIsOcrExtracting(true);
       setCropFeedback('Extracting recipient details from QR...');
@@ -961,7 +967,8 @@ export default function SettingsPanel({
         }
 
         if (detectedName) {
-          setCropFeedback(`Pure QR code extracted & recipient detected: ${detectedName}`);
+          const maskNote = isMaskedNumber ? ' (last 4 digits masked on screenshot)' : '';
+          setCropFeedback(`Pure QR extracted · Recipient: ${detectedName}${maskNote}`);
           showSuccess(`Pure QR extracted · Recipient detected: ${detectedName}`, 'Smart QR Processed');
         } else if (wasCropped) {
           setCropFeedback('Pure QR code extracted cleanly.');

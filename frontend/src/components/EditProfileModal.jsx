@@ -766,6 +766,7 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
   const [draftQrAcctName, setDraftQrAcctName] = useState('');
   const [draftQrAcctNum, setDraftQrAcctNum] = useState('');
   const [draftQrImage, setDraftQrImage] = useState('');
+  const [draftQrMeta, setDraftQrMeta] = useState({ nameSource: '', isMaskedNumber: false });
   const [savingNewQr, setSavingNewQr] = useState(false);
   const inlineQrInputRef = useRef(null);
 
@@ -776,6 +777,7 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
     setDraftQrAcctName('');
     setDraftQrAcctNum('');
     setDraftQrImage('');
+    setDraftQrMeta({ nameSource: '', isMaskedNumber: false });
   };
 
   const handleDraftQrFile = async (file, channel) => {
@@ -789,14 +791,36 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
       return;
     }
     setIsProcessingQr(true);
+    setDraftQrAcctName('');
+    setDraftQrAcctNum('');
+    setDraftQrMeta({ nameSource: '', isMaskedNumber: false });
     try {
       const cropResult = await autoCropQrScreenshot(file);
       setDraftQrImage(cropResult.croppedUrl);
+
+      // Instant fill from decoded EMVCo QR Tag 59 before OCR even finishes
+      if (cropResult.emvRecipientName) {
+        setDraftQrAcctName(cropResult.emvRecipientName);
+        setDraftQrMeta((prev) => ({ ...prev, nameSource: 'emv' }));
+      }
+      if (cropResult.emvAccountNumber) {
+        setDraftQrAcctNum(channel === 'Bank' ? cropResult.emvAccountNumber : formatPhMobileDisplay(cropResult.emvAccountNumber));
+      }
+
       try {
-        const { detectedName, detectedNumber, isMaskedNumber } = await extractQrVoucherText(cropResult);
+        const { detectedName, detectedNumber, isMaskedNumber, nameSource } = await extractQrVoucherText(cropResult);
         if (detectedName) setDraftQrAcctName(detectedName);
-        if (detectedNumber && (!isMaskedNumber || !draftQrAcctNum)) {
+        if (detectedNumber) {
           setDraftQrAcctNum(channel === 'Bank' ? detectedNumber : (isMaskedNumber ? detectedNumber : formatPhMobileDisplay(detectedNumber)));
+        }
+        setDraftQrMeta({
+          nameSource: detectedName ? (nameSource || (cropResult.emvRecipientName ? 'emv' : 'ocr')) : '',
+          isMaskedNumber: Boolean(isMaskedNumber)
+        });
+        if (detectedName) {
+          showSuccess(`Pure ${channel} QR extracted · Recipient: ${detectedName}`, 'QR Auto-Filled');
+        } else if (cropResult.wasCropped) {
+          showSuccess(`Pure ${channel} QR code cropped cleanly.`, 'QR Processed');
         }
       } catch (_) {}
     } catch (_) {
@@ -836,15 +860,21 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to save QR code.');
 
-      // Sync active form state immediately with newly saved QR
+      // Sync active form state immediately with newly saved QR (avoid overwriting a complete 11-digit profile number with a masked QR prefix)
+      const draftDigits = normalizePhMobileDigits(draftQrAcctNum);
+      const isCompleteMobile = draftDigits.length === 11 && !draftQrAcctNum.includes('*');
       if (addingQrChannel === 'GCash') {
         setGcashQrUrl(draftQrImage);
         if (draftQrAcctName.trim()) setGcashName(draftQrAcctName.trim());
-        if (draftQrAcctNum.trim()) setGcashNumber(formatPhMobileDisplay(draftQrAcctNum.trim()));
+        if (isCompleteMobile || (!gcashNumber && draftQrAcctNum.trim())) {
+          setGcashNumber(isCompleteMobile ? formatPhMobileDisplay(draftQrAcctNum.trim()) : draftQrAcctNum.trim());
+        }
       } else if (addingQrChannel === 'Maya') {
         setMayaQrUrl(draftQrImage);
         if (draftQrAcctName.trim()) setMayaName(draftQrAcctName.trim());
-        if (draftQrAcctNum.trim()) setMayaNumber(formatPhMobileDisplay(draftQrAcctNum.trim()));
+        if (isCompleteMobile || (!mayaNumber && draftQrAcctNum.trim())) {
+          setMayaNumber(isCompleteMobile ? formatPhMobileDisplay(draftQrAcctNum.trim()) : draftQrAcctNum.trim());
+        }
       } else if (addingQrChannel === 'Bank') {
         setBankQrUrl(draftQrImage);
         if (draftQrAcctName.trim()) setBankAccountName(draftQrAcctName.trim());
@@ -3177,7 +3207,11 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                             ref={inlineQrInputRef}
                             accept="image/*"
                             style={{ display: 'none' }}
-                            onChange={(e) => handleDraftQrFile(e.target.files?.[0], activeChannelName)}
+                            onChange={(e) => {
+                              const picked = e.target.files?.[0];
+                              e.target.value = '';
+                              handleDraftQrFile(picked, activeChannelName);
+                            }}
                           />
 
                           <div className="epm2-add-qr-grid">
@@ -3211,14 +3245,28 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                               </div>
 
                               <div className="epm2-field">
-                                <label className="epm2-label-sm">Account Name (OCR Auto-Fill)</label>
+                                <div className="epm2-label-row">
+                                  <label className="epm2-label-sm">Account Name (QR / OCR Auto-Fill)</label>
+                                  {isProcessingQr ? (
+                                    <span className="epm2-autofill-tag epm2-autofill-tag--pending">Scanning QR...</span>
+                                  ) : draftQrMeta.nameSource && draftQrAcctName ? (
+                                    <span className="epm2-autofill-tag epm2-autofill-tag--ok">
+                                      {draftQrMeta.nameSource === 'emv' ? 'QR Decoded' : 'OCR Detected'}
+                                    </span>
+                                  ) : null}
+                                </div>
                                 <input
                                   type="text"
                                   className="epm2-input"
                                   value={draftQrAcctName}
                                   onChange={(e) => setDraftQrAcctName(e.target.value)}
-                                  placeholder="Extracted or enter name"
+                                  placeholder={isProcessingQr ? 'Decoding QR payload...' : 'Extracted or enter name'}
                                 />
+                                {draftQrAcctName.includes('*') && (
+                                  <span className="epm2-qr-hint">
+                                    Provider masks P2P names in QR Ph — you may enter the full account name.
+                                  </span>
+                                )}
                               </div>
 
                               <div className="epm2-field">
@@ -3227,9 +3275,20 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                                   type="text"
                                   className="epm2-input epm2-mono"
                                   value={draftQrAcctNum}
-                                  onChange={(e) => setDraftQrAcctNum(activeChannelName === 'Bank' ? e.target.value : formatPhMobileDisplay(e.target.value))}
+                                  onChange={(e) => {
+                                    const val = activeChannelName === 'Bank' ? e.target.value : formatPhMobileDisplay(e.target.value);
+                                    setDraftQrAcctNum(val);
+                                    if (!val.includes('*')) {
+                                      setDraftQrMeta((prev) => ({ ...prev, isMaskedNumber: false }));
+                                    }
+                                  }}
                                   placeholder={activeChannelName === 'Bank' ? '0142-8891-23' : '0917 123 4567'}
                                 />
+                                {draftQrMeta.isMaskedNumber && draftQrAcctNum.includes('*') && (
+                                  <span className="epm2-qr-hint epm2-qr-hint--warn">
+                                    Last 4 digits were masked on the screenshot — complete your 11-digit number.
+                                  </span>
+                                )}
                               </div>
 
                               <div className="epm2-add-qr-actions">

@@ -6157,6 +6157,67 @@
   margin-top: 2px;
 }
 
+.epm2-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.epm2-autofill-tag {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.epm2-autofill-tag--ok {
+  background: rgba(16, 185, 129, 0.14);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.28);
+}
+
+[data-theme="light"] .epm2-autofill-tag--ok {
+  background: rgba(5, 150, 105, 0.1);
+  color: #047857;
+  border-color: rgba(5, 150, 105, 0.25);
+}
+
+.epm2-autofill-tag--pending {
+  background: rgba(255, 255, 255, 0.08);
+  color: #a1a1aa;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+[data-theme="light"] .epm2-autofill-tag--pending {
+  background: rgba(24, 24, 27, 0.06);
+  color: #52525b;
+  border-color: rgba(24, 24, 27, 0.12);
+}
+
+.epm2-qr-hint {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.7rem;
+  line-height: 1.35;
+  color: #8b8b94;
+}
+
+[data-theme="light"] .epm2-qr-hint {
+  color: #63636e;
+}
+
+.epm2-qr-hint--warn {
+  color: #fbbf24;
+}
+
+[data-theme="light"] .epm2-qr-hint--warn {
+  color: #b45309;
+}
+
 .epm2-lib-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
