@@ -289,36 +289,218 @@ const getTier = (count) => {
   return DOPPLER_TIERS[6];
 };
 
-const resolveCampaignCoords = (campaign) => {
-  const gpsStr = campaign.gpsCoordinates || campaign.gps_coordinates || '';
-  if (gpsStr && typeof gpsStr === 'string') {
-    const matchDeg = gpsStr.match(/(\d+\.?\d*)\s*°?\s*([NS])?[\s,]+(\d+\.?\d*)\s*°?\s*([EW])?/i);
-    if (matchDeg) {
-      let lat = parseFloat(matchDeg[1]);
-      let lng = parseFloat(matchDeg[3]);
-      if ((matchDeg[2] || '').toUpperCase() === 'S') lat = -lat;
-      if ((matchDeg[4] || '').toUpperCase() === 'W') lng = -lng;
-      if (!isNaN(lat) && !isNaN(lng) && lat > 4 && lat < 22 && lng > 115 && lng < 130) {
-        return [lat, lng];
+// Ray-casting point-in-ring test (ring coords are [lng, lat])
+function pointInGeoRing(lng, lat, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const xi = ring[i][0], yi = ring[i][1];
+    const xj = ring[j][0], yj = ring[j][1];
+    const intersect = ((yi > lat) !== (yj > lat)) && (lng < ((xj - xi) * (lat - yi)) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+function pointInGeoFeature(lng, lat, feat) {
+  const g = feat?.geometry;
+  if (!g) return false;
+  if (g.type === 'Polygon') return pointInGeoRing(lng, lat, g.coordinates[0]);
+  if (g.type === 'MultiPolygon') return g.coordinates.some((poly) => pointInGeoRing(lng, lat, poly[0]));
+  return false;
+}
+
+function ringSignedAreaAndCentroid(ring) {
+  let area2 = 0;
+  let cx = 0;
+  let cy = 0;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const x0 = ring[j][0], y0 = ring[j][1];
+    const x1 = ring[i][0], y1 = ring[i][1];
+    const cross = x0 * y1 - x1 * y0;
+    area2 += cross;
+    cx += (x0 + x1) * cross;
+    cy += (y0 + y1) * cross;
+  }
+  const absArea = Math.abs(area2) * 0.5;
+  if (Math.abs(area2) < 1e-12) {
+    let sx = 0, sy = 0;
+    for (const pt of ring) { sx += pt[0]; sy += pt[1]; }
+    return { area: 0, cx: sx / Math.max(1, ring.length), cy: sy / Math.max(1, ring.length) };
+  }
+  return { area: absArea, cx: cx / (3 * area2), cy: cy / (3 * area2) };
+}
+
+// Compute a guaranteed-on-land interior point for any Philippine province polygon
+// (prevents crescent/archipelagic provinces like Southern Leyte, Sorsogon, Quezon, Surigao from placing beacons in the sea)
+function computeInteriorLandCentroid(feat) {
+  const g = feat?.geometry;
+  if (!g) return null;
+  const outerRings = g.type === 'Polygon'
+    ? [g.coordinates[0]]
+    : g.type === 'MultiPolygon'
+      ? g.coordinates.map((poly) => poly[0])
+      : [];
+  if (outerRings.length === 0) return null;
+
+  let bestRing = outerRings[0];
+  let bestMeta = ringSignedAreaAndCentroid(bestRing);
+  for (let k = 1; k < outerRings.length; k++) {
+    const meta = ringSignedAreaAndCentroid(outerRings[k]);
+    if (meta.area > bestMeta.area) {
+      bestMeta = meta;
+      bestRing = outerRings[k];
+    }
+  }
+
+  // If the largest landmass shoelace centroid already lies strictly inside land, use it directly
+  if (pointInGeoRing(bestMeta.cx, bestMeta.cy, bestRing)) {
+    return { lat: bestMeta.cy, lng: bestMeta.cx };
+  }
+
+  // Fallback for concave/bay-shaped provinces: horizontal scanline sweep to find widest interior land span
+  let minY = 90, maxY = -90;
+  for (const pt of bestRing) {
+    if (pt[1] < minY) minY = pt[1];
+    if (pt[1] > maxY) maxY = pt[1];
+  }
+  let widestSpan = -1;
+  let bestPt = { lat: bestMeta.cy, lng: bestMeta.cx };
+  const STEPS = 28;
+  for (let s = 1; s < STEPS; s++) {
+    const y = minY + ((maxY - minY) * s) / STEPS;
+    const xs = [];
+    for (let i = 0, j = bestRing.length - 1; i < bestRing.length; j = i++) {
+      const x0 = bestRing[j][0], y0 = bestRing[j][1];
+      const x1 = bestRing[i][0], y1 = bestRing[i][1];
+      if ((y0 > y) !== (y1 > y)) {
+        xs.push(x0 + ((y - y0) * (x1 - x0)) / (y1 - y0));
       }
     }
+    xs.sort((a, b) => a - b);
+    for (let m = 0; m + 1 < xs.length; m += 2) {
+      const span = xs[m + 1] - xs[m];
+      const midX = (xs[m] + xs[m + 1]) / 2;
+      if (span > widestSpan && pointInGeoRing(midX, y, bestRing)) {
+        widestSpan = span;
+        bestPt = { lat: y, lng: midX };
+      }
+    }
+  }
+  return bestPt;
+}
+
+function minDistSqToRing(lng, lat, ring) {
+  let minD = Infinity;
+  for (let i = 0; i < ring.length; i++) {
+    const dx = ring[i][0] - lng;
+    const dy = ring[i][1] - lat;
+    const d = dx * dx + dy * dy;
+    if (d < minD) minD = d;
+  }
+  return minD;
+}
+
+// Find the exact Philippine GeoJSON province containing (or within coastal snapping tolerance of) a GPS point
+function findGeoJsonProvinceForPoint(lat, lng) {
+  if (!PH_PROVINCES_GEOJSON?.features || isNaN(lat) || isNaN(lng)) return null;
+  for (const feat of PH_PROVINCES_GEOJSON.features) {
+    if (pointInGeoFeature(lng, lat, feat)) {
+      const name = feat.properties?.name;
+      if (name) return PROVINCE_CENTROIDS[name.toLowerCase().trim()] || { name, region: feat.properties?.region || 'Philippines Disaster Zone', lat, lng };
+    }
+  }
+  // Coastal tolerance fallback (~12km / 0.11 deg) for shoreline towns whose pins sit just outside simplified GeoJSON borders
+  let closestFeat = null;
+  let closestDistSq = 0.11 * 0.11;
+  for (const feat of PH_PROVINCES_GEOJSON.features) {
+    const g = feat.geometry;
+    const rings = g?.type === 'Polygon'
+      ? [g.coordinates[0]]
+      : g?.type === 'MultiPolygon'
+        ? g.coordinates.map((p) => p[0])
+        : [];
+    for (const r of rings) {
+      const d = minDistSqToRing(lng, lat, r);
+      if (d < closestDistSq) {
+        closestDistSq = d;
+        closestFeat = feat;
+      }
+    }
+  }
+  if (closestFeat?.properties?.name) {
+    const key = closestFeat.properties.name.toLowerCase().trim();
+    return PROVINCE_CENTROIDS[key] || { name: closestFeat.properties.name, region: closestFeat.properties?.region || 'Philippines Disaster Zone', lat, lng };
+  }
+  return null;
+}
+
+// Clean text for province/regional matching by stripping street names, compound highways & infrastructure words
+export function stripStreetInfrastructure(str = '') {
+  if (!str) return '';
+  return String(str)
+    .replace(/\b[A-Za-z]+-[A-Za-z]+\s+(?:road|rd\.?|highway|hwy\.?|bridge|expressway|avenue|ave\.?|boulevard|blvd\.?)\b/gi, ' ')
+    .replace(/\b(?:dr\.?\s*)?(?:jose\s*)?rizal\s+(?:street|st\.?|avenue|ave\.?|boulevard|blvd\.?|highway|hwy\.?|road|rd\.?|lane|ln\.?|drive|dr\.?|way|bridge|monument|memorial|park|center|hall)\b/gi, ' ')
+    .replace(/\b(?:street|st\.?|avenue|ave\.?|boulevard|blvd\.?|highway|hwy\.?|road|rd\.?|lane|ln\.?|drive|dr\.?|way)\s+(?:dr\.?\s*)?(?:jose\s*)?rizal\b/gi, ' ')
+    .replace(/\b(?:street|st\.?|avenue|ave\.?|boulevard|blvd\.?|highway|hwy\.?|road|rd\.?|lane|ln\.?|drive|dr\.?|way|expressway|corner|cor\.|building|bldg|floor|flr|room|rm|unit|block|blk|lot)\b/gi, ' ')
+    .replace(/\b(?:barangay|brgy\.?|purok|sitio|zone)\b/gi, ' ');
+}
+
+// Parse explicit GPS coordinates from a campaign, rejecting legacy hardcoded Maasin fallback when locationRegion names another province
+function parseExplicitCampaignGps(campaign) {
+  const gpsStr = campaign?.gpsCoordinates || campaign?.gps_coordinates || campaign?.gps || '';
+  if (!gpsStr || typeof gpsStr !== 'string') return null;
+
+  let lat = NaN;
+  let lng = NaN;
+  const matchDeg = gpsStr.match(/(\d+\.?\d*)\s*°?\s*([NS])?[\s,]+(\d+\.?\d*)\s*°?\s*([EW])?/i);
+  if (matchDeg) {
+    lat = parseFloat(matchDeg[1]);
+    lng = parseFloat(matchDeg[3]);
+    if ((matchDeg[2] || '').toUpperCase() === 'S') lat = -lat;
+    if ((matchDeg[4] || '').toUpperCase() === 'W') lng = -lng;
+  } else {
     const matchSimple = gpsStr.match(/(-?\d+\.\d+)[\s,]+(-?\d+\.\d+)/);
     if (matchSimple) {
-      const lat = parseFloat(matchSimple[1]);
-      const lng = parseFloat(matchSimple[2]);
-      if (!isNaN(lat) && !isNaN(lng) && lat > 4 && lat < 22 && lng > 115 && lng < 130) {
-        return [lat, lng];
+      lat = parseFloat(matchSimple[1]);
+      lng = parseFloat(matchSimple[2]);
+    }
+  }
+
+  if (isNaN(lat) || isNaN(lng) || lat <= 4 || lat >= 22 || lng <= 115 || lng >= 130) {
+    return null;
+  }
+
+  // Guard against legacy hardcoded Maasin City fallback (10.1335, 124.8732 / 124.8436) on campaigns outside Southern Leyte
+  const isLegacyMaasinFallback =
+    Math.abs(lat - 10.1335) < 0.002 &&
+    (Math.abs(lng - 124.8732) < 0.002 || Math.abs(lng - 124.8436) < 0.002);
+  if (isLegacyMaasinFallback && campaign?.locationRegion) {
+    const locLower = stripStreetInfrastructure(campaign.locationRegion).toLowerCase();
+    const mentionsSouthernLeyte = /southern\s+leyte|maasin|macrohon|sogod|combado|malitbog|bontoc|liloan|hinunangan|st\.?\s*bernard|saint\s+bernard/i.test(locLower);
+    if (!mentionsSouthernLeyte) {
+      const textProv = getProvinceMatchFromTextOnly(campaign);
+      if (textProv && textProv.name.toLowerCase() !== 'southern leyte') {
+        return null;
       }
     }
   }
 
-  // Clean text for province/regional matching by stripping street names & infrastructure words
-  // so that "Rizal Street", "Rizal Ave", "Jose Rizal St", "Quezon Blvd", etc. are never mistaken for provinces!
-  const cleanLoc = stripStreetInfrastructure(campaign.locationRegion || '');
-  const cleanTitle = stripStreetInfrastructure(campaign.title || '');
+  return [lat, lng];
+}
+
+const resolveCampaignCoords = (campaign) => {
+  const explicitGps = parseExplicitCampaignGps(campaign);
+  if (explicitGps) return explicitGps;
+
+  // Clean text for province/regional matching (sorted longest-key-first so specific provinces/cities match first)
+  const cleanLoc = stripStreetInfrastructure(campaign?.locationRegion || campaign?.location_region || '');
+  const cleanTitle = stripStreetInfrastructure(campaign?.title || '');
   const text = `${cleanLoc} ${cleanTitle}`.toLowerCase();
 
-  for (const [key, val] of Object.entries(PH_LOCATIONS)) {
+  const sortedLocations = Object.entries(PH_LOCATIONS).sort((a, b) => b[0].length - a[0].length);
+  for (const [key, val] of sortedLocations) {
+    if (key === 'leyte' && text.includes('southern leyte')) continue;
+    if (key === 'samar' && (text.includes('eastern samar') || text.includes('northern samar'))) continue;
     if (key === 'rizal') {
       if (text.includes('albay') || text.includes('bicol') || text.includes('leyte') || text.includes('visayas') || text.includes('mindanao')) continue;
       const hasRizalTown = /antipolo|cainta|taytay|binangonan|san mateo|tanay|morong|angono|baras|cardona|jalajala|jala-jala|pililla|teresa|montalban|\brodriguez\b/i.test(text);
@@ -331,18 +513,11 @@ const resolveCampaignCoords = (campaign) => {
     }
   }
 
-  return [10.2500, 124.9500];
-};
+  const provMatch = getProvinceMatchFromTextOnly(campaign);
+  if (provMatch) return [provMatch.lat, provMatch.lng];
 
-// Clean text for province/regional matching by stripping street names & infrastructure words
-export function stripStreetInfrastructure(str = '') {
-  if (!str) return '';
-  return String(str)
-    .replace(/\b(?:dr\.?\s*)?(?:jose\s*)?rizal\s+(?:street|st\.?|avenue|ave\.?|boulevard|blvd\.?|highway|hwy\.?|road|rd\.?|lane|ln\.?|drive|dr\.?|way|bridge|monument|memorial|park|center|hall)\b/gi, ' ')
-    .replace(/\b(?:street|st\.?|avenue|ave\.?|boulevard|blvd\.?|highway|hwy\.?|road|rd\.?|lane|ln\.?|drive|dr\.?|way)\s+(?:dr\.?\s*)?(?:jose\s*)?rizal\b/gi, ' ')
-    .replace(/\b(?:street|st\.?|avenue|ave\.?|boulevard|blvd\.?|highway|hwy\.?|road|rd\.?|lane|ln\.?|drive|dr\.?|way|expressway|corner|cor\.|building|bldg|floor|flr|room|rm|unit|block|blk|lot)\b/gi, ' ')
-    .replace(/\b(?:barangay|brgy\.?|purok|sitio|zone)\b/gi, ' ');
-}
+  return [10.1335, 124.8436];
+};
 
 const reverseGeocodeApproxCoords = (coords) => {
   if (!coords || !coords[0] || !coords[1]) return null;
@@ -403,25 +578,13 @@ export const PROVINCE_CENTROIDS = (() => {
       const name = feat.properties?.name;
       if (!name) return;
       const key = name.toLowerCase().trim();
-      let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180;
-      const extract = (coords) => {
-        if (typeof coords[0] === 'number' && typeof coords[1] === 'number') {
-          const [lng, lat] = coords;
-          if (lat < minLat) minLat = lat;
-          if (lat > maxLat) maxLat = lat;
-          if (lng < minLng) minLng = lng;
-          if (lng > maxLng) maxLng = lng;
-        } else if (Array.isArray(coords)) {
-          coords.forEach(extract);
-        }
-      };
-      extract(feat.geometry.coordinates);
-      if (minLat !== 90 && maxLat !== -90) {
+      const interior = computeInteriorLandCentroid(feat);
+      if (interior) {
         centroids[key] = {
           name,
           region: feat.properties?.region || 'Philippines Disaster Zone',
-          lat: (minLat + maxLat) / 2,
-          lng: (minLng + maxLng) / 2
+          lat: interior.lat,
+          lng: interior.lng
         };
       }
     });
@@ -429,8 +592,8 @@ export const PROVINCE_CENTROIDS = (() => {
   return centroids;
 })();
 
-export const getProvinceMatchForCampaign = (campaign) => {
-  const cleanLoc = stripStreetInfrastructure(campaign?.locationRegion || '');
+function getProvinceMatchFromTextOnly(campaign) {
+  const cleanLoc = stripStreetInfrastructure(campaign?.locationRegion || campaign?.location_region || '');
   const cleanTitle = stripStreetInfrastructure(campaign?.title || '');
   const text = `${cleanLoc} ${cleanTitle}`.toLowerCase();
 
@@ -455,6 +618,8 @@ export const getProvinceMatchForCampaign = (campaign) => {
   // 2. City / Municipality lookup from PH_LOCATIONS (sorted descending by key length)
   const sortedLocations = Object.entries(PH_LOCATIONS).sort((a, b) => b[0].length - a[0].length);
   for (const [locKey, locVal] of sortedLocations) {
+    if (locKey === 'leyte' && text.includes('southern leyte')) continue;
+    if (locKey === 'samar' && (text.includes('eastern samar') || text.includes('northern samar'))) continue;
     if (locKey === 'rizal') {
       if (text.includes('albay') || text.includes('bicol') || text.includes('leyte') || text.includes('visayas') || text.includes('mindanao')) continue;
       const hasRizalTown = /antipolo|cainta|taytay|binangonan|san mateo|tanay|morong|angono|baras|cardona|jalajala|jala-jala|pililla|teresa|montalban|\brodriguez\b/i.test(text);
@@ -482,6 +647,18 @@ export const getProvinceMatchForCampaign = (campaign) => {
   }
 
   return null;
+}
+
+export const getProvinceMatchForCampaign = (campaign) => {
+  // 1. Authoritative GPS Point-in-Polygon match first (never fooled by "Leyte-Biliran Road", "Rizal St", etc.)
+  const explicitGps = parseExplicitCampaignGps(campaign);
+  if (explicitGps) {
+    const polyProv = findGeoJsonProvinceForPoint(explicitGps[0], explicitGps[1]);
+    if (polyProv) return polyProv;
+  }
+
+  // 2. Fallback to cleaned address / title matching
+  return getProvinceMatchFromTextOnly(campaign);
 };
 
 // ── Resolve Campaign Disaster Category, Semantic Color & Theme Metadata ───────
@@ -756,11 +933,22 @@ const resolveCampaignSubLocation = (camp, focusedProvince = '') => {
 const getProvinceCampaigns = (provinceName, allCampaigns) => {
   if (!provinceName || !allCampaigns || !allCampaigns.length) return [];
   const norm = provinceName.toLowerCase().trim();
+  const normalizeProvName = (p) => {
+    const n = String(p || '').toLowerCase().trim();
+    if (n === 'metro manila' || n === 'metropolitan manila' || n === 'ncr') return 'metropolitan manila';
+    return n;
+  };
+  const targetNorm = normalizeProvName(norm);
   return allCampaigns.filter(c => {
-    // Strip street names and infrastructure before checking province keywords to prevent false matches
+    // Canonical GPS-first province match ensures 100% parity between national cluster beacons & focused province pins
+    const canonical = getProvinceMatchForCampaign(c);
+    if (canonical && canonical.name) {
+      return normalizeProvName(canonical.name) === targetNorm;
+    }
+
+    // Fallback text matching only when neither GPS nor canonical province matched
     const cleanLoc = stripStreetInfrastructure(c.locationRegion || '');
     const cleanTitle = stripStreetInfrastructure(c.title || '');
-    // Only search locationRegion and title (never description) to avoid false positives from donor/historical text
     const text = `${cleanLoc} ${cleanTitle}`.toLowerCase();
 
     if (norm === 'southern leyte') {
@@ -1073,8 +1261,8 @@ function aggregateClustersByScreenDistance(clusterList, currentZoom, map) {
     if (members.length === 1) {
       results.push(primary);
     } else {
-      const avgLat = totalWeight > 0 ? sumLat / totalWeight : primary.lat;
-      const avgLng = totalWeight > 0 ? sumLng / totalWeight : primary.lng;
+      // Anchor macro hub on the highest-count member province's true on-land centroid (never in the sea between islands)
+      const leadMember = members.reduce((best, m) => (m.count > best.count ? m : best), members[0]);
       const combinedCount = mergedCampaigns.length;
       const combinedTier = getTier(combinedCount);
       const mainRegion = (primary.regionName || '').split('(')[0].trim() || 'Regional Cluster';
@@ -1083,8 +1271,8 @@ function aggregateClustersByScreenDistance(clusterList, currentZoom, map) {
         id: `agg-${primary.id}-${members.length}`,
         name: `${mainRegion} (${members.length} Provinces)`,
         regionName: `${members.length} Aggregated Sectors: ${members.map(m => m.name.split(',')[0].trim()).join(', ')}`,
-        lat: avgLat,
-        lng: avgLng,
+        lat: leadMember.lat,
+        lng: leadMember.lng,
         campaigns: mergedCampaigns,
         totalRaised,
         totalTarget,
@@ -2851,9 +3039,10 @@ function DisasterRadarHeatmapInner({
     const provCamps = getProvinceCampaigns(focusedProvince, activeCampaigns);
     if (!provCamps || provCamps.length === 0) return;
 
-    // Distance-based collision avoidance: ensure all placed pins have a minimum visual separation
+    // Precision placement: keep every beacon on its exact GPS coordinates.
+    // Only apply a tiny ~45m micro-offset when two campaigns share literally identical coordinates (< 50m).
     const placedPins = [];
-    const MIN_PIN_DISTANCE_DEG = 0.038; // ~4.2km separation ensures zero disc overlap
+    const EXACT_STACK_THRESHOLD_DEG = 0.00045;
     pinCoordsByCampIdRef.current.clear();
 
     provCamps.forEach((camp, idx) => {
@@ -2862,27 +3051,26 @@ function DisasterRadarHeatmapInner({
       let lat = baseCoords[0];
       let lng = baseCoords[1];
 
-      // Detect if this pin is within colliding proximity of any already-placed pin
-      let closeNeighbors = 0;
+      let stackedCount = 0;
       for (const placed of placedPins) {
         const dLat = placed.lat - baseCoords[0];
         const dLng = placed.lng - baseCoords[1];
         const dist = Math.sqrt(dLat * dLat + dLng * dLng);
-        if (dist < MIN_PIN_DISTANCE_DEG) {
-          closeNeighbors++;
+        if (dist < EXACT_STACK_THRESHOLD_DEG) {
+          stackedCount++;
         }
       }
 
-      if (closeNeighbors > 0) {
-        // Multi-directional orbital distribution: spreads overlapping pins along clean radial offsets
-        const angle = (closeNeighbors * (2 * Math.PI / Math.min(provCamps.length, 6))) + (idx * 0.85);
-        const radius = 0.028 + (closeNeighbors * 0.016);
+      if (stackedCount > 0) {
+        const angle = (stackedCount * (2 * Math.PI / Math.min(provCamps.length, 6))) + (idx * 0.6);
+        const radius = 0.00038 + (stackedCount * 0.00018);
         lat = baseCoords[0] + Math.cos(angle) * radius;
         lng = baseCoords[1] + Math.sin(angle) * radius;
       }
 
       placedPins.push({ lat, lng });
-      pinCoordsByCampIdRef.current.set(campId, [lat, lng]);
+      // Store exact un-shifted coordinates for beacon dossier readouts & camera targeting
+      pinCoordsByCampIdRef.current.set(campId, [baseCoords[0], baseCoords[1]]);
 
       const raised = parseFloat(camp.currentAmount || camp.raised_eth || 0) || 0;
       const target = parseFloat(camp.targetAmount || camp.target_eth || 0) || 0;

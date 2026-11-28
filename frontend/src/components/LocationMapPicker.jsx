@@ -117,7 +117,7 @@ const createThemedMarkerIcon = (accent = '#22c55e') => {
   return L.divIcon({
     className: 'bbdrts-custom-map-pin',
     html: `
-      <div style="position: relative; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; cursor: grab; transform: translate(-17px, -17px);">
+      <div style="position: relative; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; cursor: grab;">
         <div style="position: absolute; width: 32px; height: 32px; border-radius: 50%; background: ${accent}; opacity: 0.35; animation: pinPulseGlow 2s infinite ease-out;"></div>
         <div style="width: 20px; height: 20px; border-radius: 50%; background: ${accent}; border: 2.5px solid #ffffff; box-shadow: 0 0 14px ${accent}; display: flex; align-items: center; justify-content: center; z-index: 2;">
           <div style="width: 6px; height: 6px; border-radius: 50%; background: #ffffff;"></div>
