@@ -597,22 +597,25 @@ export default function DisburseModal({ camp, isOpen, onClose, onDisbursed }) {
     <div className="bbdrts-disb-overlay" onClick={onClose} role="dialog" aria-modal="true">
       <div className="bbdrts-disb-modal" onClick={(e) => e.stopPropagation()}>
         
-        {/* ── 1. Header (Profile & Settings Typography & Layout) ── */}
+        {/* ── 1. Header (Geist Treasury Layout) ── */}
         <div className="bbdrts-disb-header">
-          <div className="bbdrts-disb-title-wrap">
-            <h2 className="bbdrts-disb-title">
-              <span className="material-symbols-outlined" style={{ fontSize: '24px', color: '#16a34a' }}>payments</span>
-              <span>Disburse Funds &amp; Upload Proof of Relief</span>
-            </h2>
-            <p className="bbdrts-disb-subtitle">
-              Record actual ground aid distribution, attach verifiable delivery photos and merchant receipts, and notify all donors.
-            </p>
+          <div className="bbdrts-disb-header-left">
+            <div className="bbdrts-disb-header-icon" aria-hidden="true">
+              <span className="material-symbols-outlined" style={{ fontSize: '19px' }}>payments</span>
+            </div>
+            <div className="bbdrts-disb-title-wrap">
+              <h2 className="bbdrts-disb-title">Disburse Funds &amp; Proof of Relief</h2>
+              <p className="bbdrts-disb-subtitle">
+                Release verified escrow funds, attach delivery proofs, and notify campaign donors.
+              </p>
+            </div>
           </div>
           <button
             type="button"
             className="bbdrts-disb-close-btn"
             onClick={onClose}
             aria-label="Close dialog"
+            title="Close (Esc)"
           >
             <span className="material-symbols-outlined">close</span>
           </button>
@@ -629,11 +632,11 @@ export default function DisburseModal({ camp, isOpen, onClose, onDisbursed }) {
             <strong className="val">₱{currentPhp.toLocaleString()}</strong>
           </div>
           <div className="bbdrts-disb-summary-col">
-            <span className="label">Already Disbursed</span>
+            <span className="label">Disbursed</span>
             <strong className="val text-muted">₱{alreadyDisbursedPhp.toLocaleString()}</strong>
           </div>
           <div className="bbdrts-disb-summary-col highlight">
-            <span className="label">Available in Escrow</span>
+            <span className="label">Available Escrow</span>
             <strong className="val text-emerald">
               <span className="bbdrts-disb-escrow-dot"></span>
               ₱{availablePhp.toLocaleString()}
@@ -728,17 +731,35 @@ export default function DisburseModal({ camp, isOpen, onClose, onDisbursed }) {
                 {allocationMode === 'QUICK' ? (
                   <div className="bbdrts-step-panel">
                     <div className="bbdrts-disb-field">
-                      <label htmlFor="disb-amt">Amount to Disburse (PHP) <span className="req">*</span></label>
+                      <div className="bbdrts-disb-label-row">
+                        <label htmlFor="disb-amt">Amount to Disburse <span className="req">*</span></label>
+                        {availablePhp > 0 && (
+                          <span className="bbdrts-disb-label-meta">
+                            Max ₱{availablePhp.toLocaleString()}
+                          </span>
+                        )}
+                      </div>
                       <div className={`bbdrts-disb-input-wrap lg ${isOverdrawn ? 'error' : ''}`}>
                         <span className="prefix">₱</span>
                         <input
                           id="disb-amt"
-                          type="number"
-                          min="1"
-                          step="any"
+                          type="text"
+                          inputMode="decimal"
                           placeholder="0.00"
                           value={amountPhp}
-                          onChange={(e) => setAmountPhp(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault();
+                          }}
+                          onChange={(e) => {
+                            const cleaned = String(e.target.value || '').replace(/[^0-9.]/g, '');
+                            const parts = cleaned.split('.');
+                            let intPart = (parts[0] || '').slice(0, 8);
+                            if (intPart.length > 1 && intPart.startsWith('0')) {
+                              intPart = intPart.replace(/^0+/, '') || '0';
+                            }
+                            const decPart = parts.length > 1 ? '.' + parts.slice(1).join('').slice(0, 2) : '';
+                            setAmountPhp(intPart + decPart);
+                          }}
                           required
                           autoFocus
                         />
@@ -746,37 +767,66 @@ export default function DisburseModal({ camp, isOpen, onClose, onDisbursed }) {
                       </div>
 
                       {availablePhp > 0 && (
-                        <div className="bbdrts-disb-presets-row">
-                          <span className="presets-label">Quick Allocate:</span>
-                          <button type="button" onClick={() => handleQuickPercent(0.25)}>25% (₱{Math.round(availablePhp * 0.25).toLocaleString()})</button>
-                          <button type="button" onClick={() => handleQuickPercent(0.5)}>50% (₱{Math.round(availablePhp * 0.5).toLocaleString()})</button>
-                          <button type="button" onClick={() => handleQuickPercent(0.75)}>75% (₱{Math.round(availablePhp * 0.75).toLocaleString()})</button>
-                          <button type="button" onClick={() => handleQuickPercent(1.0)}>100% (All Funds: ₱{availablePhp.toLocaleString()})</button>
+                        <div className="bbdrts-disb-preset-grid" role="group" aria-label="Quick allocation presets">
+                          {[
+                            { pct: 0.25, label: '25%', val: Math.round(availablePhp * 0.25) },
+                            { pct: 0.5, label: '50%', val: Math.round(availablePhp * 0.5) },
+                            { pct: 0.75, label: '75%', val: Math.round(availablePhp * 0.75) },
+                            { pct: 1.0, label: '100% · Max', val: availablePhp }
+                          ].map((p) => {
+                            const isSelected = effectiveAmountPhp > 0 && Math.abs(effectiveAmountPhp - p.val) < 1;
+                            return (
+                              <button
+                                key={p.label}
+                                type="button"
+                                className={`bbdrts-disb-preset-card${isSelected ? ' is-selected' : ''}`}
+                                onClick={() => handleQuickPercent(p.pct)}
+                              >
+                                <span className="preset-pct">{p.label}</span>
+                                <span className="preset-amt">₱{p.val.toLocaleString()}</span>
+                              </button>
+                            );
+                          })}
                         </div>
                       )}
 
                       {isOverdrawn ? (
-                        <span className="hint-error">
-                          Exceeds available escrow balance (₱{availablePhp.toLocaleString()}) by ₱{(effectiveAmountPhp - availablePhp).toLocaleString()}.
-                        </span>
-                      ) : (
-                        <div className="bbdrts-escrow-balance-card">
-                          <div className="escrow-calc-col">
-                            <span className="calc-lbl">Available in Escrow</span>
-                            <span className="calc-val">₱{availablePhp.toLocaleString()}</span>
-                          </div>
-                          <span className="calc-math">−</span>
-                          <div className="escrow-calc-col">
-                            <span className="calc-lbl">Releasing Now</span>
-                            <span className="calc-val text-emerald">₱{effectiveAmountPhp.toLocaleString()}</span>
-                          </div>
-                          <span className="calc-math">=</span>
-                          <div className="escrow-calc-col">
-                            <span className="calc-lbl">Remaining in Escrow</span>
-                            <span className="calc-val">₱{remainingInEscrow.toLocaleString()}</span>
-                          </div>
+                        <div className="bbdrts-disb-overdrawn-alert" role="alert">
+                          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>error</span>
+                          <span>
+                            Exceeds available escrow (₱{availablePhp.toLocaleString()}) by{' '}
+                            <strong>₱{(effectiveAmountPhp - availablePhp).toLocaleString()}</strong>.
+                          </span>
                         </div>
-                      )}
+                      ) : (() => {
+                        const releasePct = availablePhp > 0
+                          ? Math.min(100, Math.max(0, Math.round((effectiveAmountPhp / availablePhp) * 100)))
+                          : 0;
+                        return (
+                          <div className="bbdrts-escrow-balance-card">
+                            <div className="bbdrts-escrow-grid">
+                              <div className="escrow-calc-col">
+                                <span className="calc-lbl">Available</span>
+                                <span className="calc-val">₱{availablePhp.toLocaleString()}</span>
+                              </div>
+                              <div className="escrow-calc-col">
+                                <span className="calc-lbl">Releasing Now</span>
+                                <span className="calc-val text-emerald">₱{effectiveAmountPhp.toLocaleString()}</span>
+                              </div>
+                              <div className="escrow-calc-col is-right">
+                                <span className="calc-lbl">Remaining After</span>
+                                <span className="calc-val">₱{remainingInEscrow.toLocaleString()}</span>
+                              </div>
+                            </div>
+                            <div className="bbdrts-escrow-progress-wrap">
+                              <div className="bbdrts-escrow-progress-track">
+                                <div className="bbdrts-escrow-progress-fill" style={{ width: `${releasePct}%` }} />
+                              </div>
+                              <span className="bbdrts-escrow-progress-label">{releasePct}% of escrow</span>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 ) : (
