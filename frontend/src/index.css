@@ -2877,8 +2877,8 @@ path.leaflet-interactive:focus-visible,
 .rcp-modal-backdrop,
 .ngo-dossier-backdrop {
   background: var(--modal-backdrop-bg) !important;
-  backdrop-filter: var(--modal-backdrop-blur) !important;
-  -webkit-backdrop-filter: var(--modal-backdrop-blur) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  backdrop-filter: blur(10px) !important;
 }
 
 /* Guarantee lower-z-index modals always cover the sticky header (z-index: 10000) cleanly */
@@ -2896,8 +2896,8 @@ path.leaflet-interactive:focus-visible,
 .bbdrts-disb-preview-overlay,
 .bbdrts-cropper-overlay,
 .fdm-lightbox-backdrop {
-  backdrop-filter: var(--modal-backdrop-blur) !important;
-  -webkit-backdrop-filter: var(--modal-backdrop-blur) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  backdrop-filter: blur(10px) !important;
 }
 
 .fdm-lightbox-backdrop {
