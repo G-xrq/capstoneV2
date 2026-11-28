@@ -346,7 +346,7 @@ export default function Header({
                       onClick={() => handleCampaignsClick('ALL')}
                     >
                       <span>Campaigns</span>
-                      <span className="material-symbols-outlined bbdrts-dropdown-caret">
+                      <span className={`material-symbols-outlined bbdrts-dropdown-caret ${activeDropdown === 'campaigns' ? 'is-open' : ''}`}>
                         expand_more
                       </span>
                     </button>
@@ -427,7 +427,7 @@ export default function Header({
                       onClick={handleHowItWorksClick}
                     >
                       <span>Transparency</span>
-                      <span className="material-symbols-outlined bbdrts-dropdown-caret">
+                      <span className={`material-symbols-outlined bbdrts-dropdown-caret ${activeDropdown === 'transparency' ? 'is-open' : ''}`}>
                         expand_more
                       </span>
                     </button>
@@ -608,6 +608,7 @@ export default function Header({
                 <div
                   className={`bbdrts-profile-chip ${isProfileOpen ? 'active' : ''}`}
                   onClick={() => setIsProfileOpen(prev => !prev)}
+                  aria-expanded={isProfileOpen}
                 >
                   <div className="bbdrts-avatar-wrap">
                     <div className="bbdrts-profile-avatar">
@@ -626,7 +627,7 @@ export default function Header({
                     />
                   </div>
                   <span className="bbdrts-profile-name">{userDisplayName}</span>
-                  <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--text-muted)' }}>
+                  <span className="material-symbols-outlined bbdrts-profile-chevron" aria-hidden="true">
                     expand_more
                   </span>
                 </div>

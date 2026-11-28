@@ -395,7 +395,17 @@
 .bbdrts-dropdown-caret {
   font-size: 16px;
   color: var(--text-muted, #888888);
-  transition: transform 150ms ease;
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1), color 160ms ease;
+  will-change: transform;
+}
+
+.bbdrts-dropdown-caret.is-open {
+  transform: rotate(180deg);
+  color: var(--text-primary, #000000);
+}
+
+[data-theme="dark"] .bbdrts-dropdown-caret.is-open {
+  color: #ffffff;
 }
 
 /* ── Navigation Dropdown Popovers ── */
@@ -928,6 +938,20 @@
 .bbdrts-profile-chevron {
   font-size: 16px;
   color: var(--text-muted, #888888);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1), color 160ms ease;
+  will-change: transform;
+}
+
+.bbdrts-profile-chip.active .bbdrts-profile-chevron {
+  transform: rotate(180deg);
+  color: var(--text-primary, #000000);
+}
+
+[data-theme="dark"] .bbdrts-profile-chip.active .bbdrts-profile-chevron {
+  color: #ffffff;
 }
 
 /* ── Unified Profile Dropdown Hub ── */
