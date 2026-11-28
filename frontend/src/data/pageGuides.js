@@ -131,13 +131,21 @@ export const PAGE_GUIDES = {
     steps: [
       {
         selector: ['#tour-ngo-radar-header'],
+        badge: 'Relief Radar · Overview',
         title: 'Live Philippine Disaster Radar',
         description: 'Monitor active relief hotspots, verified donation density, and campaign coverage across provinces and municipalities.'
       },
       {
-        selector: ['.radar-command-hud', '.radar-map-card'],
-        title: 'Interactive Map & Zoom Controls',
-        description: 'Click any campaign pin to inspect raised funds and donations received. Use +/- buttons, Ctrl + scroll, or Fullscreen mode to zoom cleanly.'
+        selector: ['.radar-unified-command-bar'],
+        badge: 'Relief Radar · Command Bar',
+        title: 'Region Presets, Telemetry & Fullscreen',
+        description: 'Jump between All Philippines, Luzon, Visayas, and Mindanao, monitor live active operations, toggle density simulation, or expand into Fullscreen mode.'
+      },
+      {
+        selector: ['.radar-map-viewport'],
+        badge: 'Relief Radar · Interactive Map',
+        title: 'Campaign Pins, Basemaps & Weather HUD',
+        description: 'Click any campaign pin to inspect raised funds and donations received. Use the bottom-left dock to switch Terrain/Satellite/Dark/Provinces layers, the top-left HUD for PAGASA weather, and +/- or Ctrl + scroll to zoom.'
       }
     ]
   },
@@ -267,10 +275,10 @@ export const PAGE_GUIDES = {
     title: 'Relief Radar',
     steps: [
       {
-        selector: ['.radar-unified-command-bar'],
-        badge: 'Relief Radar · Command Bar',
-        title: 'Geospatial Command & Live Operations Telemetry',
-        description: 'Displays live tracked operations, Philippine Standard Time (UTC+8), density simulation toggle, and Fullscreen mode for an unobstructed nationwide view.'
+        selector: ['#tour-radar-header .admin-page-header-actions'],
+        badge: 'Relief Radar · Live Sync',
+        title: 'Sync Live Geospatial Telemetry',
+        description: 'Refresh the map directly from the live database and smart contract ledger to load newly launched drives and updated funding totals.'
       },
       {
         selector: ['.radar-region-segmented-control'],
@@ -279,28 +287,16 @@ export const PAGE_GUIDES = {
         description: 'Recenter the map in one click across All Philippines, Luzon, Visayas, or Mindanao without dragging manually.'
       },
       {
-        selector: ['.radar-command-hud', '.radar-command-hud-toggle-pill'],
-        badge: 'Relief Radar · Weather & HUD',
-        title: 'Live PAGASA / Doppler Weather & Telemetry HUD',
-        description: 'Toggle precipitation radar overlays and regional storm telemetry so you can see active weather impacts right alongside verified relief operations.'
-      },
-      {
-        selector: ['.radar-floating-basemap-dock'],
-        badge: 'Relief Radar · Basemaps',
-        title: 'Map Layer Switcher',
-        description: 'Switch between Terrain, Satellite, Dark Tactical, and clean Province boundary views depending on how you want to inspect affected municipalities.'
+        selector: ['.radar-bar-right'],
+        badge: 'Relief Radar · Command Controls',
+        title: 'Live Operations Counter, Density & Fullscreen',
+        description: 'View tracked relief operations and Philippine Standard Time (UTC+8), toggle density heatmap intensity, recenter the map, or expand into Fullscreen mode for full scroll-wheel zooming.'
       },
       {
         selector: ['.radar-map-viewport'],
         badge: 'Relief Radar · Interactive Map',
-        title: 'Inspect Hotspot Pins & Safe Zooming',
-        description: 'Click any active pin on the map to open its live campaign dossier showing raised PHP, donations received, and a direct button to donate. Normal page scrolling stays smooth — use the +/- controls, Ctrl + scroll, or Fullscreen mode to zoom.'
-      },
-      {
-        selector: ['.radar-micro-legend-dock'],
-        badge: 'Relief Radar · Legend',
-        title: 'Severity & Funding Density Legend',
-        description: 'Explains pin colors and heatmap halos so you can immediately spot critical underfunded disaster zones that need support most.'
+        title: 'Campaign Pins, Weather HUD & Basemap Switcher',
+        description: 'Click any glowing pin to open its campaign dossier (raised PHP, donations received, and quick Donate link). Inside the map, use the top-left HUD for live PAGASA weather overlays, the bottom-left dock to switch Terrain/Satellite/Dark/Provinces layers, and +/- or Ctrl + scroll to zoom safely.'
       }
     ]
   },
@@ -396,13 +392,21 @@ export const PAGE_GUIDES = {
     steps: [
       {
         selector: ['.admin-page-header'],
+        badge: 'Relief Radar · Overview',
         title: 'Nationwide Relief Monitoring',
         description: 'Track active emergency campaigns and funding density across all Philippine regions in real time.'
       },
       {
-        selector: ['.radar-command-hud', '.radar-map-card'],
-        title: 'Interactive Oversight Map',
-        description: 'Click any campaign pin for funding details and donation counts. Use +/- buttons, Ctrl + scroll, or Fullscreen mode to zoom.'
+        selector: ['.radar-unified-command-bar'],
+        badge: 'Relief Radar · Command Bar',
+        title: 'Region Focus, Telemetry & Fullscreen',
+        description: 'Switch regional presets, view active tracked operations, toggle density halos, or expand into Fullscreen mode.'
+      },
+      {
+        selector: ['.radar-map-viewport'],
+        badge: 'Relief Radar · Interactive Map',
+        title: 'Interactive Oversight Map & Layer Controls',
+        description: 'Click any campaign pin for funding details and donation counts. Use the on-map HUD for PAGASA weather, the bottom-left dock for basemaps, and +/- or Ctrl + scroll to zoom.'
       }
     ]
   },

@@ -13,6 +13,8 @@ function resolveVisibleElement(selectorOrList) {
       if (!el) continue;
       const style = window.getComputedStyle(el);
       if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') continue;
+      // GuidedTour sets position:relative !important on active spotlight targets, so skip absolute/fixed overlays
+      if (style.position === 'absolute' || style.position === 'fixed') continue;
       const rect = el.getBoundingClientRect();
       if (rect.width > 0 && rect.height > 0) {
         return el;
