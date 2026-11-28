@@ -2747,119 +2747,112 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                   onClick={(e) => e.stopPropagation()}
                 >
 
-                  {/* ── Institutional Top Utility Bar ── */}
-                  <div className="cdm-topbar">
-                    <div className="cdm-topbar-meta">
-                      <span className="cdm-id-pill">#{catInfo.prefix}-00{camp.id}</span>
-                      <span className="cdm-cat">{catInfo.label}</span>
-                      {audit.urgency && (
-                        <span className={`cdm-status-chip ${/HIGH|EMERGENCY|CRITICAL|MEDIUM|URGENT/i.test(audit.urgency) ? 'is-urgent' : ''}`}>
-                          <span className="cdm-dot" />
-                          <span>
-                            {/HIGH|EMERGENCY|CRITICAL/i.test(audit.urgency)
-                              ? 'Emergency'
-                              : /MEDIUM|URGENT/i.test(audit.urgency)
-                                ? 'Urgent'
-                                : 'Standard'}
+                  {/* ── Single Smooth Scroll Canvas: Full-Bleed Hero + Open 2-Column Editorial Body ── */}
+                  <div className="cdm-scroll">
+                    <div
+                      className="cdm-hero"
+                      onClick={() => setActiveProofEvidenceImg(coverData.imageUrl)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setActiveProofEvidenceImg(coverData.imageUrl);
+                        }
+                      }}
+                      title="Click to inspect full-size cover photo"
+                    >
+                      <img
+                        src={coverData.imageUrl}
+                        alt={camp.title}
+                        className="cdm-hero-img"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = 'https://images.unsplash.com/photo-1532629345422-7515f3d16bb6?auto=format&fit=crop&w=600&q=80';
+                        }}
+                      />
+                      <div className="cdm-hero-scrim" aria-hidden="true" />
+
+                      <div className="cdm-hero-top" onClick={(e) => e.stopPropagation()}>
+                        <div className="cdm-hero-pills">
+                          <span className="cdm-glass-pill">
+                            <span className="cdm-glass-id">#{catInfo.prefix}-00{camp.id}</span>
+                            <span className="cdm-glass-sep">·</span>
+                            <span>{catInfo.label}</span>
                           </span>
-                        </span>
-                      )}
-                      <span className={`cdm-status-chip ${isCampActive ? 'is-active' : 'is-closed'}`}>
-                        <span className="cdm-dot" />
-                        <span>{isCampActive ? 'Active' : 'Concluded'}</span>
-                      </span>
-                    </div>
-
-                    <div className="cdm-topbar-right">
-                      <span className="cdm-sepolia-badge" title="Notarized on Ethereum Sepolia">
-                        <span className="material-symbols-outlined" style={{ fontSize: '13px', color: '#10b981' }}>verified_user</span>
-                        <span>Sepolia Verified</span>
-                      </span>
-                      <button
-                        type="button"
-                        className="cdm-close-btn"
-                        onClick={() => setSelectedCampaignForProof(null)}
-                        title="Close"
-                        aria-label="Close Campaign Details"
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* ── 2-Pane Independent-Scroll Editorial + Treasury/Map Split ── */}
-                  <div className="cdm-split-scroll">
-                    <div className="cdm-split">
-                      {/* LEFT: Open Editorial Narrative, Cover Photo, Evidence & Allocations */}
-                      <div className="cdm-main">
-                        <div
-                          className="cdm-cover"
-                          onClick={() => setActiveProofEvidenceImg(coverData.imageUrl)}
-                          role="button"
-                          tabIndex={0}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault();
-                              setActiveProofEvidenceImg(coverData.imageUrl);
-                            }
-                          }}
-                          title="Click to inspect full-size photo"
-                        >
-                          <img
-                            src={coverData.imageUrl}
-                            alt={camp.title}
-                            className="cdm-cover-img"
-                            onError={(e) => {
-                              e.target.onerror = null;
-                              e.target.src = 'https://images.unsplash.com/photo-1532629345422-7515f3d16bb6?auto=format&fit=crop&w=600&q=80';
-                            }}
-                          />
-                          <div className="cdm-cover-vignette" aria-hidden="true" />
-                          {allModalPhotos.length > 1 && (
-                            <span className="cdm-cover-count">
-                              <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>photo_library</span>
-                              <span>{allModalPhotos.length} photos</span>
+                          {audit.urgency && (
+                            <span className={`cdm-glass-pill ${/HIGH|EMERGENCY|CRITICAL|MEDIUM|URGENT/i.test(audit.urgency) ? 'is-urgent' : ''}`}>
+                              <span className="cdm-dot" />
+                              <span>
+                                {/HIGH|EMERGENCY|CRITICAL/i.test(audit.urgency)
+                                  ? 'Emergency'
+                                  : /MEDIUM|URGENT/i.test(audit.urgency)
+                                    ? 'Urgent'
+                                    : 'Standard'}
+                              </span>
                             </span>
                           )}
-                          <button
-                            type="button"
-                            className="cdm-cover-expand"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveProofEvidenceImg(coverData.imageUrl);
-                            }}
-                            title="Expand photo"
-                          >
-                            <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>fullscreen</span>
-                            <span>Expand</span>
-                          </button>
+                          <span className={`cdm-glass-pill ${isCampActive ? 'is-active' : 'is-closed'}`}>
+                            <span className="cdm-dot" />
+                            <span>{isCampActive ? 'Active' : 'Concluded'}</span>
+                          </span>
                         </div>
 
-                        <div className="cdm-headline-block">
-                          <h2 className="cdm-title">{displayTitle}</h2>
-
+                        <div className="cdm-hero-controls">
                           <button
                             type="button"
-                            className="cdm-org-card"
+                            className="cdm-hero-expand-btn"
+                            onClick={() => setActiveProofEvidenceImg(coverData.imageUrl)}
+                            title="Expand photo gallery"
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>fullscreen</span>
+                            <span>{allModalPhotos.length > 1 ? `${allModalPhotos.length} photos` : 'Expand'}</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="cdm-hero-close-btn"
+                            onClick={() => setSelectedCampaignForProof(null)}
+                            title="Close"
+                            aria-label="Close Campaign Details"
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="cdm-hero-bottom" onClick={(e) => e.stopPropagation()}>
+                        <h2 className="cdm-hero-title">{displayTitle}</h2>
+                        <div className="cdm-hero-byline">
+                          <span>Organized by</span>
+                          <button
+                            type="button"
+                            className="cdm-hero-org-link"
                             onClick={() => {
                               setSelectedCampaignForProof(null);
                               if (onOpenNgoProfile) onOpenNgoProfile(camp.orgId || 3);
                             }}
                             title="View verified organization profile"
                           >
-                            <span className="cdm-org-monogram" aria-hidden="true">{orgMonogram}</span>
-                            <span className="cdm-org-info">
-                              <span className="cdm-org-kicker">Organized by</span>
-                              <span className="cdm-org-name-line">
-                                <span>{orgDisplayName}</span>
-                                <span className="material-symbols-outlined cdm-org-verified-ico">verified</span>
-                              </span>
-                            </span>
-                            <span className="cdm-org-cta">
-                              <span>Profile</span>
-                              <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>chevron_right</span>
-                            </span>
+                            <span>{orgDisplayName}</span>
+                            <span className="material-symbols-outlined cdm-hero-verified-ico">verified</span>
+                            <span className="material-symbols-outlined" style={{ fontSize: '14px', opacity: 0.7 }}>chevron_right</span>
                           </button>
+                          <span className="cdm-glass-sep">·</span>
+                          <span className="cdm-hero-sepolia">
+                            <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#34d399' }}>verified_user</span>
+                            <span>Sepolia verified</span>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="cdm-body">
+                      <div className="cdm-main">
+                        <div className="cdm-block">
+                          <div className="cdm-block-head">
+                            <h3 className="cdm-block-title">About this campaign</h3>
+                          </div>
+                          <p className="cdm-prose">{audit.description}</p>
 
                           {campaignTags && campaignTags.length > 0 && (
                             <div className="cdm-tags">
@@ -2877,16 +2870,6 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                               )}
                             </div>
                           )}
-                        </div>
-
-                        <div className="cdm-section">
-                          <div className="cdm-section-head">
-                            <h3 className="cdm-section-title">
-                              <span className="material-symbols-outlined cdm-sec-ico" aria-hidden="true">description</span>
-                              <span>About this campaign</span>
-                            </h3>
-                          </div>
-                          <p className="cdm-prose">{audit.description}</p>
 
                           {audit.documentUrl && (
                             <a
@@ -2905,10 +2888,10 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                         </div>
 
                         {modalDisasterPhotos.length > 0 && (
-                          <div className="cdm-section">
-                            <div className="cdm-section-head">
-                              <h3 className="cdm-section-title">Field evidence</h3>
-                              <span className="cdm-section-meta">{modalDisasterPhotos.length} photo{modalDisasterPhotos.length === 1 ? '' : 's'}</span>
+                          <div className="cdm-block">
+                            <div className="cdm-block-head">
+                              <h3 className="cdm-block-title">Field evidence</h3>
+                              <span className="cdm-block-meta">{modalDisasterPhotos.length} photo{modalDisasterPhotos.length === 1 ? '' : 's'}</span>
                             </div>
                             <div className="bbdrts-details-evidence-grid">
                               {(() => {
@@ -2947,10 +2930,10 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                         {audit.allocations && Array.isArray(audit.allocations) && audit.allocations.length > 0 && (() => {
                           const totalAllocTarget = camp.targetAmountPhp || camp.target_amount_php || (parseFloat(camp.targetAmount || 0) * 170000);
                           return (
-                            <div className="cdm-section">
-                              <div className="cdm-section-head">
-                                <h3 className="cdm-section-title">Fund allocation</h3>
-                                <span className="cdm-section-meta">Planned disbursement</span>
+                            <div className="cdm-block">
+                              <div className="cdm-block-head">
+                                <h3 className="cdm-block-title">Fund allocation</h3>
+                                <span className="cdm-block-meta">Planned disbursement</span>
                               </div>
                               <div className="cdm-alloc-list">
                                 {audit.allocations.map((item, idx) => {
@@ -2980,20 +2963,15 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                         })()}
                       </div>
 
-                      {/* RIGHT: Treasury Summary, CTA & Ground Operations Map */}
-                      <aside className="cdm-rail">
-                        <div className="cdm-funding-card">
+                      <aside className="cdm-side">
+                        <div className="cdm-funding">
                           <div className="cdm-raised-row">
                             <span className="cdm-raised-amount">₱{currentPhp}</span>
-                            <span className="cdm-raised-pct-pill">{pct}% funded</span>
+                            <span className="cdm-raised-pct">{pct}% funded</span>
                           </div>
-                          <div className="cdm-goal-row">
-                            <span className="cdm-goal-line">
-                              raised of <strong>₱{targetPhp}</strong> goal
-                            </span>
-                            <span className="cdm-goal-rem">
-                              {remainingPhpNum > 0 ? `₱${remainingPhp} to go` : 'Goal reached'}
-                            </span>
+                          <div className="cdm-goal-line">
+                            raised of <strong>₱{targetPhp}</strong> goal
+                            {remainingPhpNum > 0 ? ` · ₱${remainingPhp} left` : ' · Goal reached'}
                           </div>
                           <div className="cdm-progress-track" title={`Funded: ${pct}% of target`}>
                             <div className="cdm-progress-fill" style={{ width: `${Math.min(100, Math.max(0, parseFloat(pct) || 0))}%` }} />
@@ -3001,17 +2979,11 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
 
                           <div className="cdm-facts-grid">
                             <div className="cdm-fact">
-                              <span className="cdm-fact-label">
-                                <span className="material-symbols-outlined cdm-fact-ico" aria-hidden="true">event</span>
-                                <span>Target delivery</span>
-                              </span>
+                              <span className="cdm-fact-label">Target delivery</span>
                               <span className="cdm-fact-val">{audit.targetDate || 'Active'}</span>
                             </div>
                             <div className="cdm-fact">
-                              <span className="cdm-fact-label">
-                                <span className="material-symbols-outlined cdm-fact-ico" aria-hidden="true">verified_user</span>
-                                <span>Audit protocol</span>
-                              </span>
+                              <span className="cdm-fact-label">Audit protocol</span>
                               <span className="cdm-fact-val">Sepolia EVM</span>
                             </div>
                           </div>
@@ -3032,16 +3004,10 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                           </button>
                         </div>
 
-                        <div className="cdm-location-card">
-                          <div className="cdm-section-head">
-                            <h3 className="cdm-section-title">
-                              <span className="material-symbols-outlined cdm-sec-ico" aria-hidden="true">location_on</span>
-                              <span>Ground location</span>
-                            </h3>
-                            <span className="cdm-gps-verified-pill">
-                              <span className="cdm-dot" />
-                              <span>GPS verified</span>
-                            </span>
+                        <div className="cdm-side-section">
+                          <div className="cdm-block-head">
+                            <h3 className="cdm-block-title">Ground location</h3>
+                            <span className="cdm-gps-tag">GPS verified</span>
                           </div>
 
                           <div className="cdm-map-wrap">
@@ -3051,62 +3017,56 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                               readOnly={true}
                               allowLayerSwitch={true}
                               defaultLayer={theme === 'dark' ? 'satellite' : 'street'}
-                              height="172px"
+                              height="176px"
                               hideTip={true}
                               theme={theme}
                             />
                           </div>
 
-                          <div className="cdm-address-text" title={audit.region}>{audit.region}</div>
+                          <div className="cdm-address-text">{audit.region}</div>
+                          {audit.gps && <div className="cdm-gps-line">{audit.gps}</div>}
 
-                          {audit.gps && (
-                            <div className="cdm-gps-bar">
-                              <span className="cdm-gps-line">{audit.gps}</span>
+                          <div className="cdm-link-row">
+                            <a
+                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(audit.gps || audit.region)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="cdm-text-link"
+                            >
+                              <span>Google Maps</span>
+                              <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>north_east</span>
+                            </a>
+                            {audit.gps && (
                               <button
                                 type="button"
-                                className="cdm-gps-copy-btn"
+                                className="cdm-text-link"
                                 onClick={() => {
                                   if (navigator.clipboard) {
                                     navigator.clipboard.writeText(audit.gps);
                                     showSuccess(`Coordinates copied: ${audit.gps}`, 'GPS Copied');
                                   }
                                 }}
-                                title="Copy GPS coordinates"
                               >
                                 <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>content_copy</span>
-                                <span>Copy</span>
+                                <span>Copy GPS</span>
                               </button>
-                            </div>
-                          )}
-
-                          <div className="cdm-map-links">
-                            <a
-                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(audit.gps || audit.region)}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="cdm-chip-btn"
-                            >
-                              <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>map</span>
-                              <span>Google Maps</span>
-                              <span className="material-symbols-outlined" style={{ fontSize: '12px', opacity: 0.7 }}>north_east</span>
-                            </a>
+                            )}
                             {camp.contractAddress && (
                               <a
                                 href={`https://sepolia.etherscan.io/address/${camp.contractAddress}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="cdm-chip-btn"
+                                className="cdm-text-link"
                               >
-                                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>token</span>
                                 <span>Etherscan</span>
-                                <span className="material-symbols-outlined" style={{ fontSize: '12px', opacity: 0.7 }}>north_east</span>
+                                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>north_east</span>
                               </a>
                             )}
                           </div>
                         </div>
 
                         {(audit.beneficiaries || audit.contact) && (
-                          <div className="cdm-rail-section">
+                          <div className="cdm-side-section">
                             <div className="cdm-detail-rows">
                               {audit.beneficiaries && (
                                 <div className="cdm-detail-row">
