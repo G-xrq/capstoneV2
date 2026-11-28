@@ -193,9 +193,14 @@ export default function GuidedTour({
   onTabChange,
   tourKey = 'bbdrts_tour_completed',
   roleName = 'User',
-  theme = 'default'
+  theme = 'default',
+  skipWelcome = false,
+  preserveTab = false,
+  disableConfetti = false,
+  skipLocalStorage = false,
+  startDelayMs = 380
 }) {
-  const [tourPhase, setTourPhase] = useState('welcome');
+  const [tourPhase, setTourPhase] = useState(skipWelcome ? 'tour' : 'welcome');
   const driverRef = useRef(null);
   const isClosingRef = useRef(false);
   const isNavigatingStepRef = useRef(false);
@@ -216,12 +221,12 @@ export default function GuidedTour({
   const themeRef = useRef(theme);
   themeRef.current = theme;
 
-  // Whenever tour opens, always start in 'welcome' mode
+  // Whenever tour opens, start in 'welcome' mode unless skipWelcome is enabled (contextual page guides)
   useEffect(() => {
     if (isOpen) {
-      setTourPhase('welcome');
+      setTourPhase(skipWelcome ? 'tour' : 'welcome');
     }
-  }, [isOpen]);
+  }, [isOpen, skipWelcome]);
 
   const handleSkipTour = () => {
     try {
@@ -275,8 +280,8 @@ export default function GuidedTour({
     isNavigatingStepRef.current = false;
     currentStepIndexRef.current = 0;
 
-    // Ensure we are settled on the dashboard view for stable layout rendering
-    if (typeof onTabChangeRef.current === 'function') {
+    // Ensure we are settled on the dashboard view for full workspace tours (skipped for in-page guides)
+    if (!preserveTab && typeof onTabChangeRef.current === 'function') {
       try {
         onTabChangeRef.current('dashboard');
       } catch (_) {}
@@ -643,16 +648,18 @@ export default function GuidedTour({
           showButtons: idx === 0 ? ['next', 'close'] : ['previous', 'next', 'close'],
           nextBtnText: isLastStep ? 'Finish' : 'Next',
           prevBtnText: 'Back',
-          // Step-level completion hooks guaranteeing confetti fires on last step
+          // Step-level completion hooks (confetti fires on full workspace tour, quiet close on page guides)
           onNextClick: isLastStep
             ? () => {
-                const popoverEl = document.querySelector('.bbdrts-tour-popover');
-                triggerCelebration(popoverEl);
+                if (!disableConfetti) {
+                  const popoverEl = document.querySelector('.bbdrts-tour-popover');
+                  triggerCelebration(popoverEl);
+                }
                 setTimeout(() => {
                   try {
                     driverRef.current?.destroy();
                   } catch (_) {}
-                }, 260);
+                }, disableConfetti ? 60 : 260);
               }
             : () => {
                 document.body.classList.add('tour-traveling');
@@ -660,13 +667,15 @@ export default function GuidedTour({
                 driverRef.current?.moveNext();
               },
           onDoneClick: () => {
-            const popoverEl = document.querySelector('.bbdrts-tour-popover');
-            triggerCelebration(popoverEl);
+            if (!disableConfetti) {
+              const popoverEl = document.querySelector('.bbdrts-tour-popover');
+              triggerCelebration(popoverEl);
+            }
             setTimeout(() => {
               try {
                 driverRef.current?.destroy();
               } catch (_) {}
-            }, 260);
+            }, disableConfetti ? 60 : 260);
           }
         }
       };
@@ -689,13 +698,15 @@ export default function GuidedTour({
       progressText: '{{current}} / {{total}}',
       steps: driverSteps,
       onDoneClick: () => {
-        const popoverEl = document.querySelector('.bbdrts-tour-popover');
-        triggerCelebration(popoverEl);
+        if (!disableConfetti) {
+          const popoverEl = document.querySelector('.bbdrts-tour-popover');
+          triggerCelebration(popoverEl);
+        }
         setTimeout(() => {
           try {
             driverRef.current?.destroy();
           } catch (_) {}
-        }, 260);
+        }, disableConfetti ? 60 : 260);
       },
       onHighlightStarted: (element, step, { state }) => {
         isNavigatingStepRef.current = true;
@@ -750,7 +761,7 @@ export default function GuidedTour({
           popoverDOM.nextButton._hasBBDRTSTourCelebration = true;
           popoverDOM.nextButton.addEventListener('pointerdown', () => {
             const isLast = currentStepIndexRef.current === totalSteps - 1;
-            if (isLast) {
+            if (isLast && !disableConfetti) {
               triggerCelebration(popoverDOM.wrapper);
             }
           });
@@ -783,11 +794,13 @@ export default function GuidedTour({
         cleanupSurround();
         if (!isClosingRef.current) {
           isClosingRef.current = true;
-          try {
-            localStorage.setItem(tourKeyRef.current, 'true');
-            localStorage.removeItem('bbdrts_tour_force_launch');
-            localStorage.removeItem('bbdrts_is_new_registration');
-          } catch (_) {}
+          if (!skipLocalStorage) {
+            try {
+              localStorage.setItem(tourKeyRef.current, 'true');
+              localStorage.removeItem('bbdrts_tour_force_launch');
+              localStorage.removeItem('bbdrts_is_new_registration');
+            } catch (_) {}
+          }
           if (typeof onCloseRef.current === 'function') {
             onCloseRef.current();
           }
@@ -805,7 +818,7 @@ export default function GuidedTour({
       } catch (err) {
         console.warn('Driver.js drive() error:', err);
       }
-    }, 380);
+    }, startDelayMs);
 
     return () => {
       clearTimeout(timer);

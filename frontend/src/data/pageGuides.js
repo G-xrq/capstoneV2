@@ -142,24 +142,51 @@ export const PAGE_GUIDES = {
     ]
   },
 
-  /* ── DONOR WORKSPACE ───────────────────────────────────────────────────── */
+  /* ── DONOR WORKSPACE (Deep Contextual Page Guides) ────────────────────── */
   'donor.dashboard': {
     title: 'Dashboard Overview',
     steps: [
       {
-        selector: ['#tour-donor-welcome', '.dbo-clean-hero'],
-        title: 'Your Giving Hub',
-        description: 'Welcome to your personal disaster relief dashboard. Track your verified impact and jump straight into active emergency drives.'
+        selector: ['#tour-donor-identity'],
+        badge: 'Dashboard · Identity & Tier',
+        title: 'Your Verified Donor Profile & Recognition Tier',
+        description: 'Displays your donor identity, current recognition badge, and active standing on BBDRTS. Every verified PHP contribution you make automatically advances your donor tier across 15 milestones.'
       },
       {
-        selector: ['#tour-donor-metrics', '.dbo-metric-grid'],
-        title: 'Live Impact Summary',
-        description: 'See your total verified PHP contributions, number of donations recorded on Sepolia, and supported relief campaigns.'
+        selector: ['#tour-donor-actions'],
+        badge: 'Dashboard · Quick Actions',
+        title: 'One-Click Giving & Verification Shortcuts',
+        description: 'Use these command buttons to jump directly into active disaster appeals, open your verified receipt archive, or refresh live balances straight from the blockchain and database.'
       },
       {
-        selector: ['#tour-donor-featured-causes', '#tour-donor-first-campaign', '.campaign-card'],
-        title: 'Featured Relief Campaigns',
-        description: 'Inspect urgent drives, verify each organization public blockchain ledger, and contribute securely via GCash, Maya, or Bank/Card.'
+        selector: ['.dbo-pending-banner'],
+        badge: 'Dashboard · Pending Slips',
+        title: 'Pending Payment Slip Status',
+        description: 'Whenever you have uploaded a GCash, Maya, or Bank transfer slip awaiting NGO confirmation, this alert tracks how many receipts are in review so you know when funds settle on-chain.'
+      },
+      {
+        selector: ['#tour-donor-metrics'],
+        badge: 'Dashboard · Impact Telemetry',
+        title: 'Live Giving Metrics & Contribution Trend',
+        description: 'Four real-time metrics track your total PHP contributed (with a live trend sparkline), currently open emergency appeals, estimated families aided, and verified Sepolia receipts. Click any interactive stat to jump straight to its detailed view.'
+      },
+      {
+        selector: ['#tour-donor-first-campaign', '#tour-donor-featured-causes'],
+        badge: 'Dashboard · Priority Appeal',
+        title: 'Featured Urgent Relief Campaign',
+        description: 'Spotlights the highest-priority active disaster drive with its category chip, location, live PHP funding progress bar, and accredited NGO. Click the ledger button to audit its public transactions first, or click Donate to contribute directly.'
+      },
+      {
+        selector: ['.dbo-secondary-grid'],
+        badge: 'Dashboard · More Active Drives',
+        title: 'Additional Verified Appeals',
+        description: 'Quickly compare additional active drives side-by-side — checking funding progress, target locations, and jumping directly into their public ledger or donation form.'
+      },
+      {
+        selector: ['.dbo-ledger-card'],
+        badge: 'Dashboard · Activity Feed',
+        title: 'Recent Verified Contributions & Etherscan Proof',
+        description: 'Lists your latest contributions with payment channel tags (GCash, Maya, Card/Bank), verified PHP amounts, and direct Etherscan links to each gasless Sepolia audit record.'
       }
     ]
   },
@@ -168,46 +195,112 @@ export const PAGE_GUIDES = {
     title: 'Explore Campaigns',
     steps: [
       {
-        selector: ['#tour-campaigns-toolbar'],
-        title: 'Search, Filter & Sort Drives',
-        description: 'Find specific disaster relief or charitable drives by region, category, keyword, or funding urgency.'
+        selector: ['.ec-head-stats'],
+        badge: 'Explore · Live Registry',
+        title: 'Platform-Wide Relief Snapshot',
+        description: 'Shows the cumulative verified PHP raised across all accredited drives, how many active emergency campaigns are open right now, and how many have reached 100% of their funding goal.'
+      },
+      {
+        selector: ['.ec-search-box'],
+        badge: 'Explore · Instant Search',
+        title: 'Search Drives, NGOs & Locations (Ctrl+K)',
+        description: 'Type any campaign title, accredited NGO name, province, municipality, or disaster tag to filter drives instantaneously. Press Ctrl+K (or Cmd+K) anywhere on this page to jump directly into search.'
+      },
+      {
+        selector: ['.ec-filters-group'],
+        badge: 'Explore · Precision Filters',
+        title: 'Status, Category, Region & Sort Controls',
+        description: 'Switch between Active and Concluded drives, narrow down to Disaster Relief (DR) or Charitable Aid (CD), filter by Philippine province, and sort by urgency, newest drives, or highest progress.'
       },
       {
         selector: ['#tour-campaigns-container .campaign-card', '.campaign-card'],
-        title: 'Inspect & Donate Transparently',
-        description: 'View raised progress, donation counts, public ledger records, and ground disbursement proofs before donating.'
+        badge: 'Explore · Campaign Card',
+        title: 'Transparent Audited Campaign Cards',
+        description: 'Every card displays the verified NGO, target location, live PHP raised vs. goal, and total donations received. Use the card buttons to inspect the Public Blockchain Ledger, view ground-zero Disbursement Proofs (delivery photos & receipts), or donate via GCash, Maya, or Bank/Card.'
       }
     ]
   },
 
   'donor.donations': {
-    title: 'My Contributions & Receipts',
+    title: 'My Contributions',
     steps: [
       {
-        selector: ['#tour-donations-header .admin-page-header-actions', '#tour-donations-header'],
-        title: 'Contribution History Controls',
-        description: 'Refresh your live donation status and download official verified receipt vouchers.'
+        selector: ['#tour-donations-header .admin-page-header-actions'],
+        badge: 'Contributions · Reports & Sync',
+        title: 'Export Giving Reports & Sync Receipts',
+        description: 'Click Export Report to download a filtered Excel, CSV, or print-ready PDF dossier of your donations. Click Sync Receipts anytime to pull the latest NGO confirmations and Sepolia hashes.'
       },
       {
-        selector: ['.contribution-receipt-card', '#tour-donations-header ~ div'],
-        title: 'Receipts, Payment Slips & Disputes',
-        description: 'Inspect your uploaded slip, view your immutable Sepolia Etherscan hash, or file a formal Audit Dispute if an NGO credits a different amount than you sent.'
+        selector: ['.rcp-summary-band'],
+        badge: 'Contributions · Audit Summary',
+        title: 'Total Impact & Discrepancy Balance Status',
+        description: 'Summarizes your total notarized PHP contributions, receipt breakdown (Disaster Relief vs. Charitable Aid), unique campaigns supported, and a live reconciliation pill confirming whether all your donations are 100% Balanced or if any shortage/variance was flagged.'
+      },
+      {
+        selector: ['.rcp-analytics-split > *:first-child'],
+        badge: 'Contributions · Giving Timeline',
+        title: 'Personal Contribution Analytics Chart',
+        description: 'Plots your giving history over time so you can visualize how your contributions have accumulated across relief drives.'
+      },
+      {
+        selector: ['.rcp-channels-card'],
+        badge: 'Contributions · Payment Rails',
+        title: 'Channel Share Breakdown (0% Markup)',
+        description: 'Breaks down what percentage of your contributions were sent via GCash, Card/Bank, and Maya — all recorded with zero platform markup and gasless Sepolia notarization.'
+      },
+      {
+        selector: ['.rcp-panel-toolbar'],
+        badge: 'Contributions · Filter Ledger',
+        title: 'Search & Filter Your Receipt Archive',
+        description: 'Search by campaign name, reference code, or transaction hash, and filter by category or payment rail to locate any specific receipt in seconds.'
+      },
+      {
+        selector: ['.rcp-ledger-panel'],
+        badge: 'Contributions · Receipts & Disputes',
+        title: 'Digital Vouchers, Payment Slips & Audit Disputes',
+        description: 'From each verified row you can inspect your original uploaded payment slip, open your official printable voucher, verify the transaction directly on Sepolia Etherscan, or file a formal Audit Dispute if an NGO credited a different amount than you sent.'
       }
     ]
   },
 
   'donor.radar': {
-    title: 'Disaster Radar & Heatmap',
+    title: 'Relief Radar',
     steps: [
       {
-        selector: ['#tour-radar-header'],
-        title: 'Nationwide Relief Coverage',
-        description: 'Explore where verified disaster relief drives are actively operating across the Philippines.'
+        selector: ['.radar-unified-command-bar'],
+        badge: 'Relief Radar · Command Bar',
+        title: 'Geospatial Command & Live Operations Telemetry',
+        description: 'Displays live tracked operations, Philippine Standard Time (UTC+8), density simulation toggle, and Fullscreen mode for an unobstructed nationwide view.'
       },
       {
-        selector: ['.radar-command-hud', '.radar-map-card'],
-        title: 'Interactive Map & Pins',
-        description: 'Select any hotspot pin to view raised funds, donations received, and open the campaign directly. Use +/- or Ctrl + scroll to zoom.'
+        selector: ['.radar-region-segmented-control'],
+        badge: 'Relief Radar · Quick Regions',
+        title: 'Island Group Focus Presets',
+        description: 'Recenter the map in one click across All Philippines, Luzon, Visayas, or Mindanao without dragging manually.'
+      },
+      {
+        selector: ['.radar-command-hud', '.radar-command-hud-toggle-pill'],
+        badge: 'Relief Radar · Weather & HUD',
+        title: 'Live PAGASA / Doppler Weather & Telemetry HUD',
+        description: 'Toggle precipitation radar overlays and regional storm telemetry so you can see active weather impacts right alongside verified relief operations.'
+      },
+      {
+        selector: ['.radar-floating-basemap-dock'],
+        badge: 'Relief Radar · Basemaps',
+        title: 'Map Layer Switcher',
+        description: 'Switch between Terrain, Satellite, Dark Tactical, and clean Province boundary views depending on how you want to inspect affected municipalities.'
+      },
+      {
+        selector: ['.radar-map-viewport'],
+        badge: 'Relief Radar · Interactive Map',
+        title: 'Inspect Hotspot Pins & Safe Zooming',
+        description: 'Click any active pin on the map to open its live campaign dossier showing raised PHP, donations received, and a direct button to donate. Normal page scrolling stays smooth — use the +/- controls, Ctrl + scroll, or Fullscreen mode to zoom.'
+      },
+      {
+        selector: ['.radar-micro-legend-dock'],
+        badge: 'Relief Radar · Legend',
+        title: 'Severity & Funding Density Legend',
+        description: 'Explains pin colors and heatmap halos so you can immediately spot critical underfunded disaster zones that need support most.'
       }
     ]
   },
@@ -432,18 +525,21 @@ export const PAGE_GUIDES = {
     steps: [
       {
         selector: ['.vs-primary-btn'],
-        title: 'Edit Profile Identity',
-        description: 'Update your display name, avatar, location, contact details, and organization bio anytime.'
+        badge: 'Settings · Profile Identity',
+        title: 'Edit Your Account Identity & Avatar',
+        description: 'Click Edit Profile to update your display name, avatar, contact details, location, bio, and anonymity preference for public donation ledgers.'
       },
       {
         selector: ['.vs-tabs'],
-        title: 'Settings Sections',
-        description: 'Navigate between Profile, QR & Payout Rails (for NGOs), workspace Preferences, 2FA Security, and Ledger & System settings.'
+        badge: 'Settings · Navigation Tabs',
+        title: 'Switch Between Settings Categories',
+        description: 'Jump between Profile details, Workspace Preferences (Dark/Light mode, High Contrast, Data Saver, language), Account Security (password & 2FA), and Ledger & System tools.'
       },
       {
         selector: ['.vs-content'],
-        title: 'Active Configuration Panel',
-        description: 'Configure theme mode, notification preferences, two-factor authentication, and saved payment QR codes right here.'
+        badge: 'Settings · Active Controls',
+        title: 'Live Account & Accessibility Configuration',
+        description: 'Every change you make here — from enabling Two-Factor Authentication to switching theme or accessibility modes — applies immediately and persists across sessions.'
       }
     ]
   }

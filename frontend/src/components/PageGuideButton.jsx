@@ -1,6 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { driver } from 'driver.js';
-import 'driver.js/dist/driver.css';
+import { useState } from 'react';
+import GuidedTour from './GuidedTour';
 import { PAGE_GUIDES } from '../data/pageGuides';
 import './PageGuideButton.css';
 
@@ -19,25 +18,16 @@ function resolveVisibleElement(selectorOrList) {
         return el;
       }
     } catch (_) {
-      // Ignore invalid selector syntax
+      // Ignore invalid selector
     }
   }
   return null;
 }
 
 export default function PageGuideButton({ guideKey, title, steps: customSteps }) {
-  const driverRef = useRef(null);
-
-  useEffect(() => {
-    return () => {
-      if (driverRef.current) {
-        try {
-          driverRef.current.destroy();
-        } catch (_) {}
-        driverRef.current = null;
-      }
-    };
-  }, []);
+  const [isOpen, setIsOpen] = useState(false);
+  const [resolvedSteps, setResolvedSteps] = useState([]);
+  const [activeTheme, setActiveTheme] = useState('dark');
 
   const config = guideKey ? PAGE_GUIDES[guideKey] : null;
   const pageTitle = title || config?.title || 'This Page';
@@ -47,78 +37,78 @@ export default function PageGuideButton({ guideKey, title, steps: customSteps })
 
   if (rawSteps.length === 0) return null;
 
-  const handleStartGuide = (e) => {
+  const handleOpenGuide = (e) => {
     e.stopPropagation();
 
-    if (driverRef.current) {
-      try {
-        driverRef.current.destroy();
-      } catch (_) {}
-      driverRef.current = null;
-    }
+    const currentTheme =
+      typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'light'
+        ? 'light'
+        : 'dark';
+    setActiveTheme(currentTheme);
 
     const usedElements = new Set();
-    const resolvedSteps = [];
+    const builtSteps = [];
 
     for (const step of rawSteps) {
       const el = resolveVisibleElement(step.selector);
       if (el && !usedElements.has(el)) {
         usedElements.add(el);
-        resolvedSteps.push({
-          element: el,
-          popover: {
-            title: step.title,
-            description: step.description,
-            side: step.side || 'bottom',
-            align: step.align || 'start'
-          }
+        builtSteps.push({
+          target: el,
+          badge: step.badge || `${pageTitle} Guide`,
+          title: step.title,
+          description: step.description,
+          placement: step.side || step.placement || 'bottom',
+          align: step.align || 'start',
+          icon: step.icon || ''
         });
       }
     }
 
-    // Fallback: if no specific sub-element is currently visible, show a clean centered guide summary
-    if (resolvedSteps.length === 0) {
-      resolvedSteps.push({
-        popover: {
-          title: `${pageTitle} Guide`,
-          description: rawSteps[0]?.description || `Explore the controls and live data available on ${pageTitle}.`
-        }
+    if (builtSteps.length === 0) {
+      const fallbackEl =
+        document.querySelector('.admin-page-header') ||
+        document.body;
+      builtSteps.push({
+        target: fallbackEl,
+        badge: `${pageTitle} Guide`,
+        title: pageTitle,
+        description: rawSteps[0]?.description || `Explore the features and live controls available on ${pageTitle}.`,
+        placement: 'bottom',
+        align: 'start'
       });
     }
 
-    const instance = driver({
-      animate: true,
-      allowClose: true,
-      smoothScroll: true,
-      overlayOpacity: 0.56,
-      stagePadding: 8,
-      stageRadius: 10,
-      popoverOffset: 12,
-      popoverClass: 'bbdrts-page-guide-popover',
-      showProgress: true,
-      progressText: '{{current}} of {{total}}',
-      nextBtnText: 'Next',
-      prevBtnText: 'Back',
-      doneBtnText: 'Done',
-      steps: resolvedSteps,
-      onDestroyed: () => {
-        driverRef.current = null;
-      }
-    });
-
-    driverRef.current = instance;
-    instance.drive();
+    setResolvedSteps(builtSteps);
+    setIsOpen(true);
   };
 
   return (
-    <button
-      type="button"
-      className="pg-trigger-btn"
-      onClick={handleStartGuide}
-      title={`Quick guide for ${pageTitle}`}
-      aria-label={`Open quick guide for ${pageTitle}`}
-    >
-      <span className="material-symbols-outlined" aria-hidden="true">help</span>
-    </button>
+    <>
+      <button
+        type="button"
+        className="pg-trigger-btn"
+        onClick={handleOpenGuide}
+        title={`Page guide for ${pageTitle}`}
+        aria-label={`Open page guide for ${pageTitle}`}
+      >
+        <span className="material-symbols-outlined" aria-hidden="true">help</span>
+      </button>
+
+      {isOpen && resolvedSteps.length > 0 && (
+        <GuidedTour
+          isOpen={isOpen}
+          onClose={() => setIsOpen(false)}
+          steps={resolvedSteps}
+          roleName={`${pageTitle} Guide`}
+          theme={activeTheme}
+          skipWelcome
+          preserveTab
+          disableConfetti
+          skipLocalStorage
+          startDelayMs={60}
+        />
+      )}
+    </>
   );
 }
