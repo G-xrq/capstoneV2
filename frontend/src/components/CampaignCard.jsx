@@ -7688,9 +7688,15 @@ export default function CampaignCard(props) {
         const orgDisplayName = getOrgDisplayName(camp.orgAddress, camp.orgName, camp.id);
         const displayTitle = formatCampaignTitle(camp.title, camp.id);
         const catInfo = getCampaignCategoryInfo(camp);
-        const targetPhp = (camp.targetAmountPhp || camp.target_amount_php || Math.round(parseFloat(camp.targetAmount || 0) * 170000)).toLocaleString('en-US', { maximumFractionDigits: 0 });
-        const currentPhp = (displayCurrentEth * 170000).toLocaleString('en-US', { maximumFractionDigits: 0 });
+        const targetPhpNum = camp.targetAmountPhp || camp.target_amount_php || Math.round(parseFloat(camp.targetAmount || 0) * 170000);
+        const currentPhpNum = Math.round(displayCurrentEth * 170000);
+        const remainingPhpNum = Math.max(0, targetPhpNum - currentPhpNum);
+        const targetPhp = targetPhpNum.toLocaleString('en-US', { maximumFractionDigits: 0 });
+        const currentPhp = currentPhpNum.toLocaleString('en-US', { maximumFractionDigits: 0 });
+        const remainingPhp = remainingPhpNum.toLocaleString('en-US', { maximumFractionDigits: 0 });
         const progressPercent = pct;
+        const isCampActive = camp.isActive !== false;
+        const orgMonogram = (orgDisplayName || 'OR').split(/\s+/).slice(0, 2).map((w) => w[0] || '').join('').toUpperCase();
 
         let modalDisasterPhotos = camp.disasterImages;
         if (!modalDisasterPhotos && (camp.disaster_images_json || camp.disasterImagesJson)) {
@@ -7715,11 +7721,10 @@ export default function CampaignCard(props) {
               className="bbdrts-details-modal"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* ── Slim Top Utility Bar ── */}
+              {/* ── Institutional Top Utility Bar ── */}
               <div className="cdm-topbar">
                 <div className="cdm-topbar-meta">
-                  <span className="cdm-id">#{catInfo.prefix}-00{camp.id}</span>
-                  <span className="cdm-sep">·</span>
+                  <span className="cdm-id-pill">#{catInfo.prefix}-00{camp.id}</span>
                   <span className="cdm-cat">{catInfo.label}</span>
                   {audit.urgency && (
                     <span className={`cdm-status-chip ${/HIGH|EMERGENCY|CRITICAL|MEDIUM|URGENT/i.test(audit.urgency) ? 'is-urgent' : ''}`}>
@@ -7733,30 +7738,48 @@ export default function CampaignCard(props) {
                       </span>
                     </span>
                   )}
-                  <span className="cdm-status-chip is-active">
+                  <span className={`cdm-status-chip ${isCampActive ? 'is-active' : 'is-closed'}`}>
                     <span className="cdm-dot" />
-                    <span>Active</span>
+                    <span>{isCampActive ? 'Active' : 'Concluded'}</span>
                   </span>
                 </div>
 
-                <button
-                  type="button"
-                  className="cdm-close-btn"
-                  onClick={() => setDetailsOpen(false)}
-                  title="Close"
-                  aria-label="Close Campaign Details"
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
-                </button>
+                <div className="cdm-topbar-right">
+                  <span className="cdm-sepolia-badge" title="Notarized on Ethereum Sepolia">
+                    <span className="material-symbols-outlined" style={{ fontSize: '13px', color: '#10b981' }}>verified_user</span>
+                    <span>Sepolia Verified</span>
+                  </span>
+                  <button
+                    type="button"
+                    className="cdm-close-btn"
+                    onClick={() => setDetailsOpen(false)}
+                    title="Close"
+                    aria-label="Close Campaign Details"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
+                  </button>
+                </div>
               </div>
 
-              {/* ── 2-Pane Editorial + Sticky Funding/Map Split ── */}
+              {/* ── 2-Pane Independent-Scroll Editorial + Treasury/Map Split ── */}
               <div className="cdm-split-scroll">
                 <div className="cdm-split">
                   {/* LEFT: Open Editorial Narrative, Cover Photo, Evidence & Allocations */}
                   <div className="cdm-main">
                     {/* Cover Photo Showcase */}
-                    <div className="cdm-cover">
+                    <div
+                      className="cdm-cover"
+                      onClick={() => setActiveEvidenceImg(coverData.imageUrl)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setActiveEvidenceImg(coverData.imageUrl);
+                        }
+                      }}
+                      title="Click to inspect full-size photo"
+                    >
                       <img
                         src={coverData.imageUrl}
                         alt={camp.title}
@@ -7766,10 +7789,20 @@ export default function CampaignCard(props) {
                           e.target.src = 'https://images.unsplash.com/photo-1532629345422-7515f3d16bb6?auto=format&fit=crop&w=600&q=80';
                         }}
                       />
+                      <div className="cdm-cover-vignette" aria-hidden="true" />
+                      {allModalPhotos.length > 1 && (
+                        <span className="cdm-cover-count">
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>photo_library</span>
+                          <span>{allModalPhotos.length} photos</span>
+                        </span>
+                      )}
                       <button
                         type="button"
                         className="cdm-cover-expand"
-                        onClick={() => setActiveEvidenceImg(coverData.imageUrl)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveEvidenceImg(coverData.imageUrl);
+                        }}
                         title="Expand photo"
                       >
                         <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>fullscreen</span>
@@ -7777,44 +7810,45 @@ export default function CampaignCard(props) {
                       </button>
                     </div>
 
-                    {/* Title, Organization & Tags */}
+                    {/* Title, Organization Attribution & Compact Tags */}
                     <div className="cdm-headline-block">
                       <h2 className="cdm-title">{displayTitle}</h2>
 
-                      <div className="cdm-org-row">
-                        <span>Organized by</span>
-                        <button
-                          type="button"
-                          className="cdm-org-btn"
-                          onClick={() => {
-                            setDetailsOpen(false);
-                            if (onOpenNgoProfile) onOpenNgoProfile(camp.orgId || 3);
-                          }}
-                          title="View verified organization profile"
-                        >
-                          <span>{orgDisplayName}</span>
-                          <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#10b981' }}>verified</span>
-                          <span className="material-symbols-outlined" style={{ fontSize: '14px', opacity: 0.55 }}>chevron_right</span>
-                        </button>
-                        <span className="cdm-sep">·</span>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                          <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#10b981' }}>verified_user</span>
-                          <span>Sepolia verified</span>
+                      <button
+                        type="button"
+                        className="cdm-org-card"
+                        onClick={() => {
+                          setDetailsOpen(false);
+                          if (onOpenNgoProfile) onOpenNgoProfile(camp.orgId || 3);
+                        }}
+                        title="View verified organization profile"
+                      >
+                        <span className="cdm-org-monogram" aria-hidden="true">{orgMonogram}</span>
+                        <span className="cdm-org-info">
+                          <span className="cdm-org-kicker">Organized by</span>
+                          <span className="cdm-org-name-line">
+                            <span>{orgDisplayName}</span>
+                            <span className="material-symbols-outlined cdm-org-verified-ico">verified</span>
+                          </span>
                         </span>
-                      </div>
+                        <span className="cdm-org-cta">
+                          <span>Profile</span>
+                          <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>chevron_right</span>
+                        </span>
+                      </button>
 
                       {campaignTags && campaignTags.length > 0 && (
                         <div className="cdm-tags">
-                          {(showAllDetailsTags ? campaignTags : campaignTags.slice(0, 6)).map((tag, idx) => (
+                          {(showAllDetailsTags ? campaignTags : campaignTags.slice(0, 4)).map((tag, idx) => (
                             <span key={idx} className="cdm-tag">#{tag.replace(/^#/, '')}</span>
                           ))}
-                          {campaignTags.length > 6 && (
+                          {campaignTags.length > 4 && (
                             <button
                               type="button"
                               className="cdm-tag-more"
                               onClick={() => setShowAllDetailsTags(!showAllDetailsTags)}
                             >
-                              {showAllDetailsTags ? 'Show less' : `+${campaignTags.length - 6} more`}
+                              {showAllDetailsTags ? 'Show less' : `+${campaignTags.length - 4} more`}
                             </button>
                           )}
                         </div>
@@ -7824,7 +7858,10 @@ export default function CampaignCard(props) {
                     {/* About / Humanitarian Scope */}
                     <div className="cdm-section">
                       <div className="cdm-section-head">
-                        <h3 className="cdm-section-title">About this campaign</h3>
+                        <h3 className="cdm-section-title">
+                          <span className="material-symbols-outlined cdm-sec-ico" aria-hidden="true">description</span>
+                          <span>About this campaign</span>
+                        </h3>
                       </div>
                       <p className="cdm-prose">{audit.description}</p>
 
@@ -7922,16 +7959,21 @@ export default function CampaignCard(props) {
                     })()}
                   </div>
 
-                  {/* RIGHT: Sticky Funding Summary, Primary CTA & Interactive Ground Map */}
+                  {/* RIGHT: Treasury Summary, Primary CTA & Ground Operations Map */}
                   <aside className="cdm-rail">
-                    {/* Funding Hero + CTA */}
-                    <div className="cdm-funding-block">
+                    {/* Elevated Fintech Funding Card */}
+                    <div className="cdm-funding-card">
                       <div className="cdm-raised-row">
                         <span className="cdm-raised-amount">₱{currentPhp}</span>
-                        <span className="cdm-raised-pct">{progressPercent}% funded</span>
+                        <span className="cdm-raised-pct-pill">{progressPercent}% funded</span>
                       </div>
-                      <div className="cdm-goal-line">
-                        raised of <strong>₱{targetPhp}</strong> goal
+                      <div className="cdm-goal-row">
+                        <span className="cdm-goal-line">
+                          raised of <strong>₱{targetPhp}</strong> goal
+                        </span>
+                        <span className="cdm-goal-rem">
+                          {remainingPhpNum > 0 ? `₱${remainingPhp} to go` : 'Goal reached'}
+                        </span>
                       </div>
                       <div className="cdm-progress-track" title={`Funded: ${progressPercent}% of target`}>
                         <div className="cdm-progress-fill" style={{ width: `${Math.min(100, Math.max(0, parseFloat(progressPercent) || 0))}%` }} />
@@ -7939,7 +7981,10 @@ export default function CampaignCard(props) {
 
                       <div className="cdm-facts-grid">
                         <div className="cdm-fact">
-                          <span className="cdm-fact-label">Donations received</span>
+                          <span className="cdm-fact-label">
+                            <span className="material-symbols-outlined cdm-fact-ico" aria-hidden="true">volunteer_activism</span>
+                            <span>Donations</span>
+                          </span>
                           <span className="cdm-fact-val">
                             {(breakdown.totalDonations ?? breakdown.totalBackers ?? 0) === 1
                               ? '1 donation'
@@ -7947,7 +7992,10 @@ export default function CampaignCard(props) {
                           </span>
                         </div>
                         <div className="cdm-fact">
-                          <span className="cdm-fact-label">Target delivery</span>
+                          <span className="cdm-fact-label">
+                            <span className="material-symbols-outlined cdm-fact-ico" aria-hidden="true">event</span>
+                            <span>Target delivery</span>
+                          </span>
                           <span className="cdm-fact-val">{formattedDeliveryDate || audit.targetDate || 'Active'}</span>
                         </div>
                       </div>
@@ -8026,11 +8074,17 @@ export default function CampaignCard(props) {
                       )}
                     </div>
 
-                    {/* Ground Deployment Map */}
-                    <div className="cdm-rail-section">
+                    {/* Cohesive Ground Deployment Map Card */}
+                    <div className="cdm-location-card">
                       <div className="cdm-section-head">
-                        <h3 className="cdm-section-title">Ground location</h3>
-                        <span className="cdm-section-meta">GPS verified</span>
+                        <h3 className="cdm-section-title">
+                          <span className="material-symbols-outlined cdm-sec-ico" aria-hidden="true">location_on</span>
+                          <span>Ground location</span>
+                        </h3>
+                        <span className="cdm-gps-verified-pill">
+                          <span className="cdm-dot" />
+                          <span>GPS verified</span>
+                        </span>
                       </div>
 
                       <div className="cdm-map-wrap">
@@ -8039,14 +8093,34 @@ export default function CampaignCard(props) {
                           gps={audit.gps}
                           readOnly={true}
                           allowLayerSwitch={true}
-                          height="196px"
+                          defaultLayer={activeTheme === 'dark' ? 'satellite' : 'street'}
+                          height="172px"
                           hideTip={true}
                           theme={activeTheme}
                         />
                       </div>
 
-                      <div className="cdm-address-text">{audit.region}</div>
-                      {audit.gps && <div className="cdm-gps-line">{audit.gps}</div>}
+                      <div className="cdm-address-text" title={audit.region}>{audit.region}</div>
+
+                      {audit.gps && (
+                        <div className="cdm-gps-bar">
+                          <span className="cdm-gps-line">{audit.gps}</span>
+                          <button
+                            type="button"
+                            className="cdm-gps-copy-btn"
+                            onClick={() => {
+                              if (navigator.clipboard) {
+                                navigator.clipboard.writeText(audit.gps);
+                                showSuccess(`Coordinates copied: ${audit.gps}`, 'GPS Copied');
+                              }
+                            }}
+                            title="Copy GPS coordinates"
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>content_copy</span>
+                            <span>Copy</span>
+                          </button>
+                        </div>
+                      )}
 
                       <div className="cdm-map-links">
                         <a
@@ -8055,24 +8129,10 @@ export default function CampaignCard(props) {
                           rel="noopener noreferrer"
                           className="cdm-chip-btn"
                         >
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>map</span>
                           <span>Google Maps</span>
-                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>north_east</span>
+                          <span className="material-symbols-outlined" style={{ fontSize: '12px', opacity: 0.7 }}>north_east</span>
                         </a>
-                        {audit.gps && (
-                          <button
-                            type="button"
-                            className="cdm-chip-btn"
-                            onClick={() => {
-                              if (navigator.clipboard) {
-                                navigator.clipboard.writeText(audit.gps);
-                                showSuccess(`Coordinates copied: ${audit.gps}`, 'GPS Copied');
-                              }
-                            }}
-                          >
-                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>content_copy</span>
-                            <span>Copy GPS</span>
-                          </button>
-                        )}
                         {camp.contractAddress && (
                           <a
                             href={`https://sepolia.etherscan.io/address/${camp.contractAddress}`}
@@ -8080,8 +8140,9 @@ export default function CampaignCard(props) {
                             rel="noopener noreferrer"
                             className="cdm-chip-btn"
                           >
+                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>token</span>
                             <span>Etherscan</span>
-                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>north_east</span>
+                            <span className="material-symbols-outlined" style={{ fontSize: '12px', opacity: 0.7 }}>north_east</span>
                           </a>
                         )}
                       </div>
