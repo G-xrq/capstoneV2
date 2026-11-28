@@ -775,7 +775,7 @@ export async function applyFaceBlurBoxes(dataUrl, faces = [], options = {}) {
     return dataUrl;
   }
 
-  const { padX = 0.42, padY = 0.54, quality = 0.86 } = options;
+  const { padX = 0.16, padY = 0.24, quality = 0.86 } = options;
   const img = await loadImage(dataUrl);
   const W = img.naturalWidth || img.width;
   const H = img.naturalHeight || img.height;
@@ -800,12 +800,12 @@ export async function applyFaceBlurBoxes(dataUrl, faces = [], options = {}) {
     const rawH = ((box.ymax - box.ymin) / 1000) * H;
     if (rawW < 4 || rawH < 4) continue;
 
-    // Auto-detected MediaPipe boxes anchor slightly low (eyes-to-chin), so bias upward 5% to cover eyebrows & forehead fully.
+    // Auto-detected MediaPipe boxes anchor slightly low (eyes-to-chin), so nudge 3% upward to cover eyebrows cleanly without swallowing hair or collars.
     const isManual = Boolean(box.manual);
-    const effPadX = isManual ? Math.min(padX, 0.34) : padX;
-    const effPadY = isManual ? Math.min(padY, 0.38) : padY;
+    const effPadX = isManual ? 0.14 : padX;
+    const effPadY = isManual ? 0.18 : padY;
     const cx = rawX + rawW / 2;
-    const cy = rawY + rawH * (isManual ? 0.5 : 0.45);
+    const cy = rawY + rawH * (isManual ? 0.5 : 0.47);
     const rx = rawW * (0.5 + effPadX);
     const ry = rawH * (0.5 + effPadY);
 
@@ -817,8 +817,8 @@ export async function applyFaceBlurBoxes(dataUrl, faces = [], options = {}) {
     const ph = y2 - y;
     if (pw < 6 || ph < 6) continue;
 
-    const blurRadius = Math.max(14, Math.min(64, Math.round(Math.max(rawW, rawH) * 0.30)));
-    const bleed = Math.min(blurRadius * 2, 72);
+    const blurRadius = Math.max(10, Math.min(36, Math.round(Math.max(rawW, rawH) * 0.22)));
+    const bleed = Math.min(blurRadius * 2, 48);
     const sx = Math.max(0, x - bleed);
     const sy = Math.max(0, y - bleed);
     const sx2 = Math.min(W, x2 + bleed);
@@ -826,9 +826,9 @@ export async function applyFaceBlurBoxes(dataUrl, faces = [], options = {}) {
     const sw = sx2 - sx;
     const sh = sy2 - sy;
 
-    // Aggressive 4-7px irreversible pixel collapse destroys eyes/brows/mouth before smooth Gaussian upscale
-    const downW = Math.max(4, Math.min(7, Math.round(sw / Math.max(14, rawW * 0.26))));
-    const downH = Math.max(4, Math.min(7, Math.round(sh / Math.max(14, rawH * 0.26))));
+    // 5-8px pixel collapse removes facial features irreversibly without bleeding hair/background too far inward
+    const downW = Math.max(5, Math.min(8, Math.round(sw / Math.max(12, rawW * 0.22))));
+    const downH = Math.max(5, Math.min(8, Math.round(sh / Math.max(12, rawH * 0.22))));
     tinyCanvas.width = downW;
     tinyCanvas.height = downH;
     tinyCtx.imageSmoothingEnabled = true;
@@ -865,13 +865,12 @@ export async function applyFaceBlurBoxes(dataUrl, faces = [], options = {}) {
     patchCtx.globalCompositeOperation = 'destination-in';
     patchCtx.translate(localCx, localCy);
     patchCtx.scale(rx, ry);
-    // Hold 100% solid opaque privacy blur across the entire face (including eyebrows, forehead & jaw corners),
-    // then smoothly feather only the outer 24% perimeter so zero sharp facial features can bleed through.
+    // Solid opaque core fits snugly across eyebrows-to-chin (0.68), then feathers cleanly right along the hairline & jawline.
     const grad = patchCtx.createRadialGradient(0, 0, 0, 0, 0, 1);
     grad.addColorStop(0.0, 'rgba(0, 0, 0, 1)');
-    grad.addColorStop(0.76, 'rgba(0, 0, 0, 1)');
-    grad.addColorStop(0.87, 'rgba(0, 0, 0, 0.65)');
-    grad.addColorStop(0.95, 'rgba(0, 0, 0, 0.22)');
+    grad.addColorStop(0.68, 'rgba(0, 0, 0, 1)');
+    grad.addColorStop(0.84, 'rgba(0, 0, 0, 0.58)');
+    grad.addColorStop(0.95, 'rgba(0, 0, 0, 0.16)');
     grad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
     patchCtx.fillStyle = grad;
     patchCtx.beginPath();
