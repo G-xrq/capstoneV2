@@ -94,7 +94,7 @@ export default function PageGuideButton({ guideKey, title, steps: customSteps })
         title={`Page guide for ${pageTitle}`}
         aria-label={`Open page guide for ${pageTitle}`}
       >
-        <span className="material-symbols-outlined" aria-hidden="true">help</span>
+        <span className="pg-qmark" aria-hidden="true">?</span>
       </button>
 
       {isOpen && resolvedSteps.length > 0 && (

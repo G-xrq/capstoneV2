@@ -7,8 +7,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
   margin-left: 2px;
   padding: 0;
   border-radius: 999px;
@@ -28,7 +28,7 @@
 }
 
 .pg-trigger-btn:active {
-  transform: scale(0.95);
+  transform: scale(0.94);
 }
 
 .pg-trigger-btn:focus-visible {
@@ -36,7 +36,10 @@
   outline-offset: 2px;
 }
 
-.pg-trigger-btn .material-symbols-outlined {
-  font-size: 14px;
+.pg-trigger-btn .pg-qmark {
+  font-size: 11px;
+  font-weight: 700;
   line-height: 1;
+  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, 'Inter', sans-serif);
+  user-select: none;
 }
