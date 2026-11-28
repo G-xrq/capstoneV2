@@ -4197,25 +4197,21 @@ export default function CampaignCard(props) {
             className="ledger-modal-card bounce-in"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* 1. Masterclass Header with Security Protocol Chip */}
+            {/* 1. Clean Institutional Header */}
             <div className="ledger-header">
               <div className="ledger-header-left">
-                <div className="ledger-header-badge-icon">
-                  <span className="material-symbols-outlined">account_balance</span>
-                </div>
                 <div className="ledger-header-title-block">
                   <div className="ledger-header-title-row">
-                    <span className="ledger-header-title">Public Blockchain Ledger</span>
-                    <span className="ledger-campaign-pill">Campaign #{camp.id}</span>
-                    <div className="ledger-security-badge" title="Cryptographically audited with Sepolia EVM immutability">
+                    <h3 className="ledger-header-title">Public Blockchain Ledger</h3>
+                    <span className="ledger-campaign-pill">#{camp.id}</span>
+                    <span className="ledger-security-badge" title="Cryptographically audited with Sepolia EVM immutability">
                       <span className="ledger-pulse-dot" />
-                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified_user</span>
-                      <span>Sepolia Verified · 100% Immutable</span>
-                    </div>
+                      <span>Sepolia Verified</span>
+                    </span>
                   </div>
-                  <span className="ledger-header-subtitle">
-                    Public, tamper-proof record of verified GCash, Maya, card, and bank donations notarized on Sepolia
-                  </span>
+                  <p className="ledger-header-subtitle">
+                    Tamper-proof record of verified GCash, Maya, card, and bank donations notarized on Ethereum Sepolia.
+                  </p>
                 </div>
               </div>
 
@@ -4240,67 +4236,37 @@ export default function CampaignCard(props) {
                   title="Close Ledger (Esc)"
                   aria-label="Close Public Ledger"
                 >
-                  <span className="material-symbols-outlined">close</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
                 </button>
               </div>
             </div>
 
-            {/* 2. High-Impact 3-Card KPI Ribbon (Zero Truncation) */}
+            {/* 2. Zero-Box Hairline 3-Column Metric Strip */}
             <div className="ledger-kpi-ribbon">
               <div className="ledger-kpi-item">
-                <div className="ledger-kpi-icon-wrap kpi-green">
-                  <span className="material-symbols-outlined">payments</span>
-                </div>
-                <div className="ledger-kpi-data">
-                  <span className="ledger-kpi-label">Audited Volume</span>
-                  <div className="ledger-kpi-value-row">
-                    <span className="ledger-kpi-primary-val">₱{ledgerTelemetry.totalPhp.toLocaleString('en-US')}</span>
-                    <span className="ledger-kpi-secondary-val">
-                      Gasless Sepolia Audited
-                    </span>
-                  </div>
-                </div>
+                <span className="ledger-kpi-label">Audited Volume</span>
+                <span className="ledger-kpi-primary-val">₱{ledgerTelemetry.totalPhp.toLocaleString('en-US')}</span>
+                <span className="ledger-kpi-sub">Gasless Sepolia notarized</span>
               </div>
 
               <div className="ledger-kpi-item">
-                <div className="ledger-kpi-icon-wrap kpi-blue">
-                  <span className="material-symbols-outlined">volunteer_activism</span>
-                </div>
-                <div className="ledger-kpi-data">
-                  <span className="ledger-kpi-label">Donations Received</span>
-                  <div className="ledger-kpi-value-row">
-                    <span className="ledger-kpi-primary-val">{ledgerTelemetry.onchainCount + ledgerTelemetry.gatewayCount} {(ledgerTelemetry.onchainCount + ledgerTelemetry.gatewayCount) === 1 ? 'Donation' : 'Donations'}</span>
-                    <span className="ledger-kpi-badge-val">
-                      100% Verified &amp; Notarized
-                    </span>
-                  </div>
-                </div>
+                <span className="ledger-kpi-label">Donations Received</span>
+                <span className="ledger-kpi-primary-val">{ledgerTelemetry.onchainCount + ledgerTelemetry.gatewayCount}</span>
+                <span className="ledger-kpi-sub">100% verified receipts</span>
               </div>
 
               <div className="ledger-kpi-item">
-                <div className="ledger-kpi-icon-wrap kpi-purple">
-                  <span className="material-symbols-outlined">groups</span>
-                </div>
-                <div className="ledger-kpi-data">
-                  <span className="ledger-kpi-label">Unique Contributors</span>
-                  <div className="ledger-kpi-value-row">
-                    <span className="ledger-kpi-primary-val">
-                      {ledgerTelemetry.namedCount > 0
-                        ? `${ledgerTelemetry.namedCount} Verified ${ledgerTelemetry.namedCount === 1 ? 'Donor' : 'Donors'}`
-                        : ledgerTelemetry.guestCount > 0
-                          ? `${ledgerTelemetry.guestCount} ${ledgerTelemetry.guestCount === 1 ? 'Guest' : 'Guests'}`
-                          : ledgerTelemetry.anonCount > 0
-                            ? `${ledgerTelemetry.anonCount} Anonymous`
-                            : '0 Donors'}
-                    </span>
-                    <span className="ledger-kpi-badge-val">
-                      {[
-                        ledgerTelemetry.guestCount > 0 ? `${ledgerTelemetry.guestCount} Guest` : null,
-                        ledgerTelemetry.anonCount > 0 ? `+ ${ledgerTelemetry.anonCount} Anonymous ${ledgerTelemetry.anonCount === 1 ? 'Gift' : 'Gifts'}` : null
-                      ].filter(Boolean).join(' · ') || (ledgerTelemetry.namedCount > 0 ? 'All Named Contributors' : 'No donations yet')}
-                    </span>
-                  </div>
-                </div>
+                <span className="ledger-kpi-label">Unique Contributors</span>
+                <span className="ledger-kpi-primary-val">
+                  {ledgerTelemetry.namedCount + ledgerTelemetry.guestCount + ledgerTelemetry.anonCount}
+                </span>
+                <span className="ledger-kpi-sub">
+                  {[
+                    ledgerTelemetry.namedCount > 0 ? `${ledgerTelemetry.namedCount} named` : null,
+                    ledgerTelemetry.guestCount > 0 ? `${ledgerTelemetry.guestCount} guest` : null,
+                    ledgerTelemetry.anonCount > 0 ? `${ledgerTelemetry.anonCount} anonymous` : null
+                  ].filter(Boolean).join(' · ') || 'No donations yet'}
+                </span>
               </div>
             </div>
 
@@ -4311,90 +4277,14 @@ export default function CampaignCard(props) {
               </div>
             ) : !history || history.length === 0 ? (
               <div className="ledger-empty">
-                <span className="material-symbols-outlined" style={{ fontSize: '32px', color: 'var(--text-muted)' }}>inbox</span>
+                <span className="material-symbols-outlined" style={{ fontSize: '30px', color: 'var(--text-muted)' }}>inbox</span>
                 <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>No donations recorded for this campaign yet.</span>
-                <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Be the first to donate and establish an immutable record on Sepolia!</span>
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Be the first to donate and establish an immutable record on Sepolia.</span>
               </div>
             ) : (
               <>
-                {/* 3. Masterclass Web3 Control Center */}
+                {/* 3. Unified Single-Row Toolbar */}
                 <div className="ledger-control-center">
-                  {/* Row 1: Payment Rails Navigation */}
-                  <div className="ledger-rails-row">
-                    <div className="ledger-rail-tabs">
-                      <button
-                        type="button"
-                        className={`ledger-rail-tab ${ledgerRailFilter === 'ALL' ? 'active' : ''}`}
-                        onClick={() => setLedgerRailFilter('ALL')}
-                      >
-                        <span className="material-symbols-outlined rail-tab-icon">hub</span>
-                        <span>All Rails</span>
-                        <span className="ledger-pill-count">{ledgerCounts.all}</span>
-                      </button>
-
-                      {ledgerCounts.onchain > 0 && (
-                        <button
-                          type="button"
-                          className={`ledger-rail-tab ${ledgerRailFilter === 'ONCHAIN' ? 'active tab-onchain' : ''}`}
-                          onClick={() => setLedgerRailFilter('ONCHAIN')}
-                        >
-                          <span className="ledger-rail-dot onchain-dot" />
-                          <span>Legacy Audited</span>
-                          <span className="ledger-pill-count">{ledgerCounts.onchain}</span>
-                        </button>
-                      )}
-
-                      {ledgerCounts.gcash > 0 && (
-                        <button
-                          type="button"
-                          className={`ledger-rail-tab ${ledgerRailFilter === 'GCASH' ? 'active tab-gcash' : ''}`}
-                          onClick={() => setLedgerRailFilter('GCASH')}
-                        >
-                          <span className="ledger-rail-dot gcash-dot" />
-                          <span>GCash</span>
-                          <span className="ledger-pill-count">{ledgerCounts.gcash}</span>
-                        </button>
-                      )}
-
-                      {ledgerCounts.maya > 0 && (
-                        <button
-                          type="button"
-                          className={`ledger-rail-tab ${ledgerRailFilter === 'MAYA' ? 'active tab-maya' : ''}`}
-                          onClick={() => setLedgerRailFilter('MAYA')}
-                        >
-                          <span className="ledger-rail-dot maya-dot" />
-                          <span>Maya</span>
-                          <span className="ledger-pill-count">{ledgerCounts.maya}</span>
-                        </button>
-                      )}
-
-                      {ledgerCounts.card > 0 && (
-                        <button
-                          type="button"
-                          className={`ledger-rail-tab ${ledgerRailFilter === 'CARD' ? 'active tab-card' : ''}`}
-                          onClick={() => setLedgerRailFilter('CARD')}
-                        >
-                          <span className="ledger-rail-dot card-dot" />
-                          <span>Cards &amp; Bank</span>
-                          <span className="ledger-pill-count">{ledgerCounts.card}</span>
-                        </button>
-                      )}
-                    </div>
-
-                    {isAnyFilterActive && (
-                      <button
-                        type="button"
-                        className="ledger-clear-all-btn"
-                        onClick={handleResetFilters}
-                        title="Reset all filters"
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>restart_alt</span>
-                        <span>Reset Filters</span>
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Row 2: Search, Contributor Type, Date & Sort */}
                   <div className="ledger-filters-row">
                     <div className="ledger-search-box">
                       <span className="material-symbols-outlined ledger-search-icon">search</span>
@@ -4412,49 +4302,127 @@ export default function CampaignCard(props) {
                           onClick={() => setLedgerSearch('')}
                           title="Clear search query"
                         >
-                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
+                          <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>close</span>
                         </button>
                       )}
                     </div>
 
-                    {/* Contributor Identity Segmented Filter (counts match exact table rows) */}
-                    <div className="ledger-identity-tabs">
-                      <button
-                        type="button"
-                        className={`ledger-id-tab ${ledgerIdentityFilter === 'ALL' ? 'active' : ''}`}
-                        onClick={() => setLedgerIdentityFilter('ALL')}
-                      >
-                        All ({ledgerCounts.all})
-                      </button>
-                      <button
-                        type="button"
-                        className={`ledger-id-tab ${ledgerIdentityFilter === 'VERIFIED' ? 'active' : ''}`}
-                        onClick={() => setLedgerIdentityFilter('VERIFIED')}
-                      >
-                        Verified ({ledgerCounts.namedTx})
-                      </button>
-                      {ledgerCounts.guestTx > 0 && (
+                    {/* Show payment rail pills only when multiple rails exist */}
+                    {([ledgerCounts.onchain, ledgerCounts.gcash, ledgerCounts.maya, ledgerCounts.card].filter((c) => c > 0).length > 1) && (
+                      <div className="ledger-rail-tabs">
                         <button
                           type="button"
-                          className={`ledger-id-tab ${ledgerIdentityFilter === 'GUEST' ? 'active' : ''}`}
-                          onClick={() => setLedgerIdentityFilter('GUEST')}
+                          className={`ledger-rail-tab ${ledgerRailFilter === 'ALL' ? 'active' : ''}`}
+                          onClick={() => setLedgerRailFilter('ALL')}
                         >
-                          Guest ({ledgerCounts.guestTx})
+                          <span>All</span>
+                          <span className="ledger-pill-count">{ledgerCounts.all}</span>
                         </button>
-                      )}
-                      {ledgerCounts.anonTx > 0 && (
-                        <button
-                          type="button"
-                          className={`ledger-id-tab ${ledgerIdentityFilter === 'ANON' ? 'active' : ''}`}
-                          onClick={() => setLedgerIdentityFilter('ANON')}
-                        >
-                          Anonymous ({ledgerCounts.anonTx})
-                        </button>
-                      )}
-                    </div>
 
-                    {/* Date & Sort Group */}
+                        {ledgerCounts.onchain > 0 && (
+                          <button
+                            type="button"
+                            className={`ledger-rail-tab ${ledgerRailFilter === 'ONCHAIN' ? 'active tab-onchain' : ''}`}
+                            onClick={() => setLedgerRailFilter('ONCHAIN')}
+                          >
+                            <span className="ledger-rail-dot onchain-dot" />
+                            <span>On-Chain</span>
+                            <span className="ledger-pill-count">{ledgerCounts.onchain}</span>
+                          </button>
+                        )}
+
+                        {ledgerCounts.gcash > 0 && (
+                          <button
+                            type="button"
+                            className={`ledger-rail-tab ${ledgerRailFilter === 'GCASH' ? 'active tab-gcash' : ''}`}
+                            onClick={() => setLedgerRailFilter('GCASH')}
+                          >
+                            <span className="ledger-rail-dot gcash-dot" />
+                            <span>GCash</span>
+                            <span className="ledger-pill-count">{ledgerCounts.gcash}</span>
+                          </button>
+                        )}
+
+                        {ledgerCounts.maya > 0 && (
+                          <button
+                            type="button"
+                            className={`ledger-rail-tab ${ledgerRailFilter === 'MAYA' ? 'active tab-maya' : ''}`}
+                            onClick={() => setLedgerRailFilter('MAYA')}
+                          >
+                            <span className="ledger-rail-dot maya-dot" />
+                            <span>Maya</span>
+                            <span className="ledger-pill-count">{ledgerCounts.maya}</span>
+                          </button>
+                        )}
+
+                        {ledgerCounts.card > 0 && (
+                          <button
+                            type="button"
+                            className={`ledger-rail-tab ${ledgerRailFilter === 'CARD' ? 'active tab-card' : ''}`}
+                            onClick={() => setLedgerRailFilter('CARD')}
+                          >
+                            <span className="ledger-rail-dot card-dot" />
+                            <span>Bank / Card</span>
+                            <span className="ledger-pill-count">{ledgerCounts.card}</span>
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Show contributor type tabs only when mixed contributor types exist */}
+                    {(ledgerCounts.guestTx > 0 || ledgerCounts.anonTx > 0) && (
+                      <div className="ledger-identity-tabs">
+                        <button
+                          type="button"
+                          className={`ledger-id-tab ${ledgerIdentityFilter === 'ALL' ? 'active' : ''}`}
+                          onClick={() => setLedgerIdentityFilter('ALL')}
+                        >
+                          All ({ledgerCounts.all})
+                        </button>
+                        {ledgerCounts.namedTx > 0 && (
+                          <button
+                            type="button"
+                            className={`ledger-id-tab ${ledgerIdentityFilter === 'VERIFIED' ? 'active' : ''}`}
+                            onClick={() => setLedgerIdentityFilter('VERIFIED')}
+                          >
+                            Verified ({ledgerCounts.namedTx})
+                          </button>
+                        )}
+                        {ledgerCounts.guestTx > 0 && (
+                          <button
+                            type="button"
+                            className={`ledger-id-tab ${ledgerIdentityFilter === 'GUEST' ? 'active' : ''}`}
+                            onClick={() => setLedgerIdentityFilter('GUEST')}
+                          >
+                            Guest ({ledgerCounts.guestTx})
+                          </button>
+                        )}
+                        {ledgerCounts.anonTx > 0 && (
+                          <button
+                            type="button"
+                            className={`ledger-id-tab ${ledgerIdentityFilter === 'ANON' ? 'active' : ''}`}
+                            onClick={() => setLedgerIdentityFilter('ANON')}
+                          >
+                            Anon ({ledgerCounts.anonTx})
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Right-Aligned Date, Sort & Reset */}
                     <div className="ledger-aux-controls">
+                      {isAnyFilterActive && (
+                        <button
+                          type="button"
+                          className="ledger-clear-all-btn"
+                          onClick={handleResetFilters}
+                          title="Reset all filters"
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>restart_alt</span>
+                          <span>Reset</span>
+                        </button>
+                      )}
+
                       <div className="ledger-custom-date-container" ref={datePickerContainerRef}>
                         <button
                           type="button"
@@ -4462,7 +4430,7 @@ export default function CampaignCard(props) {
                           onClick={() => setDatePickerOpen(prev => !prev)}
                           title={ledgerDateFilter ? `Active filter: ${formatLedgerSelectedDate(ledgerDateFilter)}` : 'Filter transactions by date'}
                         >
-                          <span className="material-symbols-outlined ledger-date-btn-icon">calendar_month</span>
+                          <span className="material-symbols-outlined ledger-date-btn-icon">calendar_today</span>
                           <span className="ledger-date-btn-text">
                             {ledgerDateFilter ? formatLedgerSelectedDate(ledgerDateFilter) : 'Date'}
                           </span>
@@ -4480,7 +4448,9 @@ export default function CampaignCard(props) {
                               <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
                             </span>
                           ) : (
-                            <span className="ledger-date-btn-arrow">{datePickerOpen ? '▴' : '▾'}</span>
+                            <span className={`material-symbols-outlined ledger-date-chevron ${datePickerOpen ? 'is-open' : ''}`}>
+                              expand_more
+                            </span>
                           )}
                         </button>
 
@@ -4627,11 +4597,11 @@ export default function CampaignCard(props) {
                   <table className="ledger-table">
                     <thead>
                       <tr>
-                        <th style={{ width: '18%' }}>Date &amp; Time</th>
-                        <th style={{ width: '28%' }}>Contributor</th>
+                        <th style={{ width: '18%' }}>Date</th>
+                        <th style={{ width: '31%' }}>Contributor</th>
                         <th style={{ width: '16%' }}>Channel</th>
-                        <th style={{ width: '22%' }}>Audit Proof / Tx</th>
-                        <th style={{ width: '16%', textAlign: 'right' }}>Amount</th>
+                        <th style={{ width: '21%' }}>Audit Proof</th>
+                        <th style={{ width: '14%', textAlign: 'right' }}>Amount</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -4777,64 +4747,61 @@ export default function CampaignCard(props) {
                               {/* 4. Audit Proof / Tx Hash */}
                               <td>
                                 <div className="ledger-cell-proof">
-                                  <div className="ledger-proof-hash-line">
-                                    {(() => {
-                                      const rawHash = rec.txHash || '';
-                                      let cleanDisplay = rawHash;
-                                      if (cleanDisplay.startsWith('FIAT-GCAS-')) cleanDisplay = 'GCASH-' + cleanDisplay.slice(10);
-                                      else if (cleanDisplay.startsWith('FIAT-MAYA-')) cleanDisplay = 'MAYA-' + cleanDisplay.slice(10);
-                                      else if (cleanDisplay.startsWith('FIAT-BANK-')) cleanDisplay = 'BANK-' + cleanDisplay.slice(10);
-                                      else if (cleanDisplay.startsWith('FIAT-CARD-')) cleanDisplay = 'CARD-' + cleanDisplay.slice(10);
-                                      else if (cleanDisplay.startsWith('FIAT-')) cleanDisplay = 'REF-' + cleanDisplay.slice(5);
+                                  {(() => {
+                                    const rawHash = rec.txHash || '';
+                                    let cleanDisplay = rawHash;
+                                    if (cleanDisplay.startsWith('FIAT-GCAS-')) cleanDisplay = 'GCASH-' + cleanDisplay.slice(10);
+                                    else if (cleanDisplay.startsWith('FIAT-MAYA-')) cleanDisplay = 'MAYA-' + cleanDisplay.slice(10);
+                                    else if (cleanDisplay.startsWith('FIAT-BANK-')) cleanDisplay = 'BANK-' + cleanDisplay.slice(10);
+                                    else if (cleanDisplay.startsWith('FIAT-CARD-')) cleanDisplay = 'CARD-' + cleanDisplay.slice(10);
+                                    else if (cleanDisplay.startsWith('FIAT-')) cleanDisplay = 'REF-' + cleanDisplay.slice(5);
 
-                                      const shortDisplay = cleanDisplay
-                                        ? cleanDisplay.length > 20
-                                          ? `${cleanDisplay.slice(0, 8)}...${cleanDisplay.slice(-6)}`
-                                          : cleanDisplay
-                                        : 'Confirmed';
+                                    const shortDisplay = cleanDisplay
+                                      ? cleanDisplay.length > 20
+                                        ? `${cleanDisplay.slice(0, 8)}…${cleanDisplay.slice(-6)}`
+                                        : cleanDisplay
+                                      : 'Confirmed';
 
-                                      return (
-                                        <span className="ledger-proof-mono" title={cleanDisplay || 'Confirmed'}>
-                                          {shortDisplay}
-                                        </span>
-                                      );
-                                    })()}
-                                    {rec.txHash && (
-                                      <button
-                                        type="button"
-                                        className={`ledger-proof-copy-btn ${isCopied ? 'copied' : ''}`}
-                                        onClick={(e) => handleCopyHash(e, rec.txHash, 'Transaction reference')}
-                                        title="Copy transaction reference"
-                                      >
-                                        <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>
-                                          {isCopied ? 'check' : 'content_copy'}
-                                        </span>
-                                      </button>
-                                    )}
-                                  </div>
-                                  {rec.txHash && (() => {
-                                    const isRealMinedTx = rec.txHash.startsWith('0x') && rec.txHash.length === 66 && !rec.txHash.startsWith('0x19ddb');
+                                    const isRealMinedTx = rawHash.startsWith('0x') && rawHash.length === 66 && !rawHash.startsWith('0x19ddb');
                                     const explorerHref = (railMeta.railKey === 'ONCHAIN' || isRealMinedTx)
-                                      ? `${SEPOLIA_EXPLORER}${rec.txHash}`
+                                      ? `${SEPOLIA_EXPLORER}${rawHash}`
                                       : 'https://sepolia.etherscan.io/address/0xB8Effb4f0394946a01da9C5342fC2e70c1E99ddA';
-                                    const linkLabel = isRealMinedTx
-                                      ? 'View on Etherscan'
-                                      : (railMeta.railKey === 'ONCHAIN' ? 'Sepolia Explorer' : 'Contract Proof');
-                                    const linkTitle = isRealMinedTx
-                                      ? `Inspect notarized ${railMeta.name} audit proof on Sepolia Etherscan`
-                                      : 'Inspect multi-sig escrow contract on Sepolia Etherscan';
+                                    const proofSub = isRealMinedTx
+                                      ? 'Sepolia Etherscan'
+                                      : (railMeta.railKey === 'ONCHAIN' ? 'Sepolia Explorer' : 'Escrow Contract');
 
                                     return (
-                                      <a
-                                        href={explorerHref}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="ledger-etherscan-link"
-                                        title={linkTitle}
-                                      >
-                                        <span>{linkLabel}</span>
-                                        <span className="material-symbols-outlined" style={{ fontSize: '11px' }}>open_in_new</span>
-                                      </a>
+                                      <>
+                                        <div className="ledger-proof-hash-line">
+                                          {rawHash ? (
+                                            <a
+                                              href={explorerHref}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                              className="ledger-proof-link"
+                                              title={`Inspect ${cleanDisplay} on Sepolia Etherscan`}
+                                            >
+                                              <span className="ledger-proof-mono">{shortDisplay}</span>
+                                              <span className="material-symbols-outlined ledger-proof-ext">north_east</span>
+                                            </a>
+                                          ) : (
+                                            <span className="ledger-proof-mono">{shortDisplay}</span>
+                                          )}
+                                          {rawHash && (
+                                            <button
+                                              type="button"
+                                              className={`ledger-proof-copy-btn ${isCopied ? 'copied' : ''}`}
+                                              onClick={(e) => handleCopyHash(e, rawHash, 'Transaction reference')}
+                                              title="Copy transaction hash"
+                                            >
+                                              <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>
+                                                {isCopied ? 'check' : 'content_copy'}
+                                              </span>
+                                            </button>
+                                          )}
+                                        </div>
+                                        <span className="ledger-proof-sub">{proofSub}</span>
+                                      </>
                                     );
                                   })()}
                                 </div>
@@ -4847,7 +4814,7 @@ export default function CampaignCard(props) {
                                     ₱{(rec.phpAmount || Math.round((rec.rawAmount || parseFloat(rec.amount || 0)) * 170000)).toLocaleString('en-US')}
                                   </span>
                                   <span className="ledger-amount-secondary">
-                                    PHP Verified
+                                    Verified
                                   </span>
                                 </div>
                               </td>
@@ -4861,22 +4828,21 @@ export default function CampaignCard(props) {
               </>
             )}
 
-            {/* 5. Clean Modal Footer */}
+            {/* 5. Slim Institutional Footer */}
             <div className="ledger-modal-footer">
               <div className="ledger-footer-status">
-                <span className="material-symbols-outlined" style={{ fontSize: '14px', color: 'var(--accent, #22c55e)' }}>verified_user</span>
-                <span>Decentralized &amp; Cryptographically Audited Ledger</span>
+                <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#10b981' }}>verified_user</span>
+                <span>
+                  Showing {filteredHistory.length} of {history ? history.length : 0} verified Sepolia {(history ? history.length : 0) === 1 ? 'receipt' : 'receipts'}
+                </span>
               </div>
-              <div className="ledger-footer-actions">
-                <span className="ledger-footer-count">Showing {filteredHistory.length} of {history ? history.length : 0} {(history ? history.length : 0) === 1 ? 'donation' : 'donations'}</span>
-                <button
-                  type="button"
-                  className="btn btn-outline btn-sm"
-                  onClick={() => setLedgerOpen(false)}
-                >
-                  Close
-                </button>
-              </div>
+              <button
+                type="button"
+                className="ledger-footer-close-btn"
+                onClick={() => setLedgerOpen(false)}
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>,
