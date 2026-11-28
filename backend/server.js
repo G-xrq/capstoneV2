@@ -8716,6 +8716,13 @@ app.post('/api/org/donations/declare-direct', authenticateToken, async (req, res
     if (!campaignId || amountPhp < 1) {
       return res.status(400).json({ error: 'Valid campaign and PHP amount (>= ₱1) are required.' });
     }
+    const cleanRailUp = String(payment_method || 'GCash').toUpperCase();
+    const maxDirectCapPhp = (cleanRailUp.includes('GCASH') || cleanRailUp.includes('MAYA')) ? 500000 : 5000000;
+    if (amountPhp > maxDirectCapPhp) {
+      return res.status(400).json({
+        error: `Amount (₱${amountPhp.toLocaleString()}) exceeds the single-transfer ceiling of ₱${maxDirectCapPhp.toLocaleString()} for ${payment_method || 'this channel'}.`
+      });
+    }
     if (!cleanRef || cleanRef.length < 4) {
       return res.status(400).json({ error: 'Please provide the GCash, Maya, or bank reference number.' });
     }

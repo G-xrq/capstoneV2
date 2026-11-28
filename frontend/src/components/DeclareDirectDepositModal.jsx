@@ -1,12 +1,20 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { API_URL } from '../config';
+import GeistSelect from './GeistSelect';
+import './DeclareDirectDepositModal.css';
+
+const PAYMENT_RAILS = [
+  { id: 'GCash', label: 'GCash', dotClass: 'is-gcash', maxPhp: 500000, refPlaceholder: 'e.g. 0044 579 175068' },
+  { id: 'Maya', label: 'Maya', dotClass: 'is-maya', maxPhp: 500000, refPlaceholder: 'e.g. MYA928374651' },
+  { id: 'Bank / Card', label: 'Bank / Card', dotClass: 'is-bank', maxPhp: 5000000, refPlaceholder: 'e.g. INSTA-88412039' }
+];
 
 /**
- * NGO "Declare Unclaimed Direct Deposit" Modal
+ * NGO "Log Unclaimed Direct Deposit" Modal (Dual-Theme Vercel Geist)
  * Closes the static-QR loophole for honest NGOs: when a donor sends GCash, Maya,
  * or Bank Transfer directly without uploading a receipt, the NGO can declare it
- * here with the reference number (and optional BB-XXXX transfer note code),
+ * here with the reference number (and optional BBXXXXXX transfer note code),
  * crediting the campaign and notarizing it gaslessly on Ethereum Sepolia.
  */
 export default function DeclareDirectDepositModal({
@@ -34,7 +42,16 @@ export default function DeclareDirectDepositModal({
     }
   }, [isOpen, campaigns, campaignId]);
 
-  // Live auto-identify donor, campaign, channel, and amount as soon as NGO enters a BB-XXXX code
+  useEffect(() => {
+    if (!isOpen || submitting) return;
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') onClose?.();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, submitting, onClose]);
+
+  // Live auto-identify donor, campaign, channel, and amount as soon as NGO enters a BBXXXXXX code
   useEffect(() => {
     const code = trackingCode.trim().toUpperCase();
     if (!code || code.length < 6) {
@@ -55,8 +72,11 @@ export default function DeclareDirectDepositModal({
             setMatchedIntent(data);
             setLookupStatus('found');
             if (data.campaignId) setCampaignId(String(data.campaignId));
-            if (data.paymentMethod) setPaymentMethod(data.paymentMethod);
-            if (data.amountPhp && Number(data.amountPhp) > 0) setAmountPhp(String(data.amountPhp));
+            if (data.paymentMethod) {
+              const pmUp = String(data.paymentMethod).toUpperCase();
+              setPaymentMethod(pmUp.includes('GCASH') ? 'GCash' : pmUp.includes('MAYA') ? 'Maya' : 'Bank / Card');
+            }
+            if (data.amountPhp && Number(data.amountPhp) > 0) setAmountPhp(String(Math.round(Number(data.amountPhp))));
             return;
           }
         }
@@ -72,9 +92,26 @@ export default function DeclareDirectDepositModal({
 
   if (!isOpen) return null;
 
+  const activeRail = PAYMENT_RAILS.find((r) => r.id === paymentMethod) || PAYMENT_RAILS[0];
+  const parsedAmount = Number.isFinite(parseFloat(amountPhp)) ? parseFloat(amountPhp) : 0;
+  const exceedsRailCap = parsedAmount > activeRail.maxPhp;
+  const cleanRef = referenceNumber.trim();
+  const canSubmit = Boolean(!submitting && campaignId && parsedAmount >= 1 && !exceedsRailCap && cleanRef.length >= 4);
+
+  const handleAmountChange = (rawVal) => {
+    const cleaned = String(rawVal ?? '').replace(/[^0-9.]/g, '');
+    const parts = cleaned.split('.');
+    let intPart = (parts[0] || '').slice(0, 7);
+    if (intPart.length > 1 && intPart.startsWith('0')) {
+      intPart = intPart.replace(/^0+/, '') || '0';
+    }
+    const decPart = parts.length > 1 ? '.' + parts.slice(1).join('').slice(0, 2) : '';
+    setAmountPhp(intPart + decPart);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const numericPhp = Math.round(Number(amountPhp || 0));
+    const numericPhp = Math.round(parsedAmount);
     if (!campaignId) {
       showError?.('Please select a target relief campaign.', 'Campaign Required');
       return;
@@ -83,7 +120,14 @@ export default function DeclareDirectDepositModal({
       showError?.('Please enter a valid PHP amount (at least ₱1).', 'Invalid Amount');
       return;
     }
-    if (!referenceNumber.trim() || referenceNumber.trim().length < 4) {
+    if (numericPhp > activeRail.maxPhp) {
+      showError?.(
+        `Amount exceeds the single-transfer limit of ₱${activeRail.maxPhp.toLocaleString('en-US')} for ${activeRail.label}.`,
+        'Amount Limit Exceeded'
+      );
+      return;
+    }
+    if (cleanRef.length < 4) {
       showError?.('Please enter the GCash, Maya, or bank reference number.', 'Reference Required');
       return;
     }
@@ -101,7 +145,7 @@ export default function DeclareDirectDepositModal({
           campaign_id: Number(campaignId),
           amount_php: numericPhp,
           payment_method: paymentMethod,
-          reference_number: referenceNumber.trim(),
+          reference_number: cleanRef,
           tracking_code: trackingCode.trim().toUpperCase() || undefined,
           notes: notes.trim() || undefined
         })
@@ -115,13 +159,15 @@ export default function DeclareDirectDepositModal({
         ? ` Matched to donor intent ${data.matchedTrackingCode} & notarized on Sepolia.`
         : ' Notarized gaslessly on Ethereum Sepolia.';
       showSuccess?.(
-        `₱${numericPhp.toLocaleString('en-US')} via ${paymentMethod} logged (Ref: ${referenceNumber.trim()}).${matchMsg}`,
+        `₱${numericPhp.toLocaleString('en-US')} via ${paymentMethod} logged (Ref: ${cleanRef}).${matchMsg}`,
         'Unclaimed Deposit Recorded'
       );
 
       setAmountPhp('');
       setReferenceNumber('');
       setTrackingCode('');
+      setMatchedIntent(null);
+      setLookupStatus('idle');
       setNotes('');
       onSuccess?.(data);
       onClose?.();
@@ -132,312 +178,272 @@ export default function DeclareDirectDepositModal({
     }
   };
 
+  const campaignOptions = campaigns.map((c) => ({
+    id: String(c.id),
+    label: c.title || `Campaign #${c.id}`,
+    triggerLabel: `#${c.id} — ${c.title || 'Relief Campaign'}`,
+    sub: [`#${c.id}`, c.locationMunicipality || c.locationCity || c.locationProvince || ''].filter(Boolean).join(' · '),
+    badge: c.isActive === false || c.isActive === 0 ? 'Closed' : (c.category === 'CD' ? 'Charity' : 'Relief'),
+    icon: c.category === 'CD' ? 'volunteer_activism' : 'campaign'
+  }));
+
   return createPortal(
     <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 9999,
-        background: 'rgba(0, 0, 0, 0.72)',
-        backdropFilter: 'blur(6px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '16px'
-      }}
+      className="ddm-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Log Unclaimed Direct Deposit"
       onClick={() => !submitting && onClose?.()}
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: '100%',
-          maxWidth: '500px',
-          background: 'var(--bg-card, #0a0a0a)',
-          border: '1px solid var(--border, #262626)',
-          borderRadius: '14px',
-          overflow: 'hidden',
-          boxShadow: '0 24px 64px rgba(0, 0, 0, 0.55)',
-          fontFamily: 'var(--font-sans, inherit)'
-        }}
-      >
-        <div
-          style={{
-            padding: '16px 20px',
-            borderBottom: '1px solid var(--border, #262626)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '12px'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div
-              style={{
-                width: '34px',
-                height: '34px',
-                borderRadius: '8px',
-                background: 'rgba(16, 185, 129, 0.14)',
-                border: '1px solid rgba(16, 185, 129, 0.3)',
-                color: '#10b981',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add_card</span>
+      <div className="ddm-dialog" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="ddm-header">
+          <div className="ddm-header-left">
+            <div className="ddm-header-icon" aria-hidden="true">
+              <span className="material-symbols-outlined" style={{ fontSize: '19px' }}>add_card</span>
             </div>
             <div>
-              <h3 style={{ margin: 0, fontSize: '0.96rem', fontWeight: 700, color: 'var(--text-primary, #fff)' }}>
-                Log Unclaimed Direct Deposit
-              </h3>
-              <p style={{ margin: '2px 0 0', fontSize: '0.73rem', color: 'var(--text-muted, #888)' }}>
-                Record GCash, Maya, or Bank transfers received without a donor receipt upload
+              <h3 className="ddm-title">Log Unclaimed Direct Deposit</h3>
+              <p className="ddm-subtitle">
+                Record GCash, Maya, or Bank transfers received without a donor receipt upload.
               </p>
             </div>
           </div>
+
           <button
             type="button"
+            className="ddm-close-btn"
             disabled={submitting}
             onClick={() => onClose?.()}
-            style={{
-              background: 'transparent',
-              border: '1px solid var(--border, #262626)',
-              color: 'var(--text-muted, #888)',
-              width: '30px',
-              height: '30px',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
+            aria-label="Close modal"
+            title="Close (Esc)"
           >
-            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>close</span>
+            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '13px' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '5px' }}>
-              <label style={{ fontSize: '0.73rem', fontWeight: 600, color: 'var(--text-secondary, #a1a1aa)' }}>
-                Donor Note Code (Auto-Identifies Donor &amp; Campaign)
-              </label>
-              {lookupStatus === 'loading' && (
-                <span style={{ fontSize: '0.68rem', color: '#38bdf8' }}>Looking up…</span>
-              )}
-              {lookupStatus === 'found' && (
-                <span style={{ fontSize: '0.68rem', color: '#10b981', fontWeight: 700 }}>✓ Auto-Matched</span>
-              )}
-              {lookupStatus === 'not_found' && (
-                <span style={{ fontSize: '0.68rem', color: '#f59e0b' }}>No matching code found</span>
-              )}
-            </div>
-            <input
-              type="text"
-              placeholder="Paste note code from GCash/Maya (e.g. BB278341)"
-              value={trackingCode}
-              onChange={(e) => setTrackingCode(e.target.value.toUpperCase())}
-              style={{
-                width: '100%',
-                height: '38px',
-                padding: '0 12px',
-                borderRadius: '8px',
-                border: `1px solid ${lookupStatus === 'found' ? 'rgba(16, 185, 129, 0.55)' : 'var(--border, #262626)'}`,
-                background: 'var(--bg-input, #111)',
-                color: 'var(--text-primary, #fff)',
-                fontSize: '0.84rem',
-                fontFamily: 'var(--font-mono, monospace)',
-                fontWeight: 700,
-                boxSizing: 'border-box'
-              }}
-            />
-            {matchedIntent && (
-              <div
-                style={{
-                  marginTop: '7px',
-                  padding: '8px 10px',
-                  borderRadius: '8px',
-                  background: 'rgba(16, 185, 129, 0.1)',
-                  border: '1px solid rgba(16, 185, 129, 0.3)',
-                  fontSize: '0.73rem',
-                  color: '#d1fae5',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '2px'
-                }}
-              >
-                <div>
-                  <strong style={{ color: '#10b981' }}>Matched Donor:</strong> {matchedIntent.donorName}
-                </div>
-                <div>
-                  <strong style={{ color: '#10b981' }}>Intended Campaign:</strong> #{matchedIntent.campaignId} — {matchedIntent.campaignTitle} (₱{Number(matchedIntent.amountPhp || 0).toLocaleString('en-US')} via {matchedIntent.paymentMethod})
-                </div>
+        {/* Form */}
+        <form className="ddm-form" onSubmit={handleSubmit}>
+          <div className="ddm-body">
+            {/* Optional Auto-Match Donor Note Code */}
+            <div className={`ddm-lookup-card${lookupStatus === 'found' ? ' is-matched' : ''}`}>
+              <div className="ddm-label-row">
+                <label htmlFor="ddm-tracking-code" className="ddm-label">
+                  Donor Note Code
+                </label>
+                {lookupStatus === 'idle' && (
+                  <span className="ddm-status-tag is-idle">Optional · Auto-fills donor &amp; drive</span>
+                )}
+                {lookupStatus === 'loading' && (
+                  <span className="ddm-status-tag is-loading">Looking up…</span>
+                )}
+                {lookupStatus === 'found' && (
+                  <span className="ddm-status-tag is-found">
+                    <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>check_circle</span>
+                    <span>Auto-Matched</span>
+                  </span>
+                )}
+                {lookupStatus === 'not_found' && (
+                  <span className="ddm-status-tag is-warn">No matching intent</span>
+                )}
               </div>
-            )}
-          </div>
 
-          <div>
-            <label style={{ display: 'block', fontSize: '0.73rem', fontWeight: 600, color: 'var(--text-secondary, #a1a1aa)', marginBottom: '5px' }}>
-              Target Relief Campaign *
-            </label>
-            <select
-              value={campaignId}
-              onChange={(e) => setCampaignId(e.target.value)}
-              required
-              style={{
-                width: '100%',
-                height: '38px',
-                padding: '0 10px',
-                borderRadius: '8px',
-                border: '1px solid var(--border, #262626)',
-                background: 'var(--bg-input, #111)',
-                color: 'var(--text-primary, #fff)',
-                fontSize: '0.82rem'
-              }}
-            >
-              {campaigns.map((c) => (
-                <option key={c.id} value={String(c.id)}>
-                  #{c.id} — {c.title}
-                </option>
-              ))}
-            </select>
-          </div>
+              <div className="ddm-input-wrap">
+                <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--text-muted)' }}>
+                  qr_code_scanner
+                </span>
+                <input
+                  id="ddm-tracking-code"
+                  type="text"
+                  className="ddm-input is-mono"
+                  placeholder="Paste note code from GCash/Maya (e.g. BB278341)"
+                  value={trackingCode}
+                  onChange={(e) => setTrackingCode(e.target.value.toUpperCase())}
+                />
+                {trackingCode && (
+                  <button
+                    type="button"
+                    className="ddm-clear-btn"
+                    onClick={() => {
+                      setTrackingCode('');
+                      setMatchedIntent(null);
+                      setLookupStatus('idle');
+                    }}
+                    aria-label="Clear note code"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>close</span>
+                  </button>
+                )}
+              </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.73rem', fontWeight: 600, color: 'var(--text-secondary, #a1a1aa)', marginBottom: '5px' }}>
-                Payment Channel *
-              </label>
-              <select
-                value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value)}
-                style={{
-                  width: '100%',
-                  height: '38px',
-                  padding: '0 10px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--border, #262626)',
-                  background: 'var(--bg-input, #111)',
-                  color: 'var(--text-primary, #fff)',
-                  fontSize: '0.82rem'
-                }}
-              >
-                <option value="GCash">GCash</option>
-                <option value="Maya">Maya</option>
-                <option value="Bank / Card">Bank Transfer / Card</option>
-              </select>
+              {matchedIntent && (
+                <div className="ddm-matched-banner">
+                  <span className="material-symbols-outlined">verified</span>
+                  <div>
+                    <div>
+                      <strong>Matched Donor:</strong> {matchedIntent.donorName}
+                    </div>
+                    <div>
+                      <strong>Intended Drive:</strong> #{matchedIntent.campaignId} — {matchedIntent.campaignTitle} (₱{Number(matchedIntent.amountPhp || 0).toLocaleString('en-US')} via {matchedIntent.paymentMethod})
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
-            <div>
-              <label style={{ display: 'block', fontSize: '0.73rem', fontWeight: 600, color: 'var(--text-secondary, #a1a1aa)', marginBottom: '5px' }}>
-                Amount Received (PHP) *
+            {/* Target Relief Campaign (GeistSelect) */}
+            <div className="ddm-field">
+              <label className="ddm-label">
+                Target Relief Campaign <span className="ddm-req">*</span>
               </label>
-              <input
-                type="number"
-                min="1"
-                step="1"
-                required
-                placeholder="e.g. 500"
-                value={amountPhp}
-                onChange={(e) => setAmountPhp(e.target.value)}
-                style={{
-                  width: '100%',
-                  height: '38px',
-                  padding: '0 12px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--border, #262626)',
-                  background: 'var(--bg-input, #111)',
-                  color: 'var(--text-primary, #fff)',
-                  fontSize: '0.84rem',
-                  boxSizing: 'border-box'
-                }}
+              <GeistSelect
+                width="100%"
+                menuMinWidth={360}
+                searchable={campaigns.length > 5}
+                searchPlaceholder="Search campaign by title, #ID, or location..."
+                emptyText="No campaigns found"
+                value={campaignId}
+                onChange={(val) => setCampaignId(String(val))}
+                options={campaignOptions}
               />
             </div>
-          </div>
 
-          <div>
-            <label style={{ display: 'block', fontSize: '0.73rem', fontWeight: 600, color: 'var(--text-secondary, #a1a1aa)', marginBottom: '5px' }}>
-              Payment Reference No. *
-            </label>
-            <input
-              type="text"
-              required
-              placeholder="e.g. 0044 579 175068"
-              value={referenceNumber}
-              onChange={(e) => setReferenceNumber(e.target.value)}
-              style={{
-                width: '100%',
-                height: '38px',
-                padding: '0 12px',
-                borderRadius: '8px',
-                border: '1px solid var(--border, #262626)',
-                background: 'var(--bg-input, #111)',
-                color: 'var(--text-primary, #fff)',
-                fontSize: '0.82rem',
-                fontFamily: 'var(--font-mono, monospace)',
-                boxSizing: 'border-box'
-              }}
-            />
-          </div>
+            {/* 1-Click Payment Channel Selector */}
+            <div className="ddm-field">
+              <div className="ddm-label-row">
+                <label className="ddm-label">
+                  Payment Channel <span className="ddm-req">*</span>
+                </label>
+                <span className="ddm-hint">Max ₱{activeRail.maxPhp.toLocaleString('en-US')}</span>
+              </div>
+              <div className="ddm-rail-grid" role="radiogroup" aria-label="Payment channel">
+                {PAYMENT_RAILS.map((rail) => {
+                  const isActive = paymentMethod === rail.id;
+                  return (
+                    <button
+                      key={rail.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={isActive}
+                      className={`ddm-rail-btn${isActive ? ' is-active' : ''}`}
+                      onClick={() => setPaymentMethod(rail.id)}
+                    >
+                      <span className={`ddm-rail-dot ${rail.dotClass}`} aria-hidden="true" />
+                      <span>{rail.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
-          <div>
-            <label style={{ display: 'block', fontSize: '0.73rem', fontWeight: 600, color: 'var(--text-secondary, #a1a1aa)', marginBottom: '5px' }}>
-              Audit Notes (Optional)
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. Received via GCash inbox at 10:15 AM without donor slip"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              style={{
-                width: '100%',
-                height: '38px',
-                padding: '0 12px',
-                borderRadius: '8px',
-                border: '1px solid var(--border, #262626)',
-                background: 'var(--bg-input, #111)',
-                color: 'var(--text-primary, #fff)',
-                fontSize: '0.82rem',
-                boxSizing: 'border-box'
-              }}
-            />
-          </div>
+            {/* Amount & Reference No. Row */}
+            <div className="ddm-grid-2">
+              <div className="ddm-field">
+                <label htmlFor="ddm-amount" className="ddm-label">
+                  Amount Received <span className="ddm-req">*</span>
+                </label>
+                <div className={`ddm-input-wrap${exceedsRailCap ? ' is-error' : ''}`}>
+                  <span className="ddm-prefix">₱</span>
+                  <input
+                    id="ddm-amount"
+                    type="text"
+                    inputMode="decimal"
+                    className="ddm-input is-mono"
+                    placeholder="0.00"
+                    value={amountPhp}
+                    onKeyDown={(e) => {
+                      if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault();
+                    }}
+                    onChange={(e) => handleAmountChange(e.target.value)}
+                    required
+                  />
+                  <span className="ddm-suffix">PHP</span>
+                </div>
+                {exceedsRailCap && (
+                  <span className="ddm-error-note">
+                    Exceeds {activeRail.label} limit (₱{activeRail.maxPhp.toLocaleString('en-US')}).
+                  </span>
+                )}
+              </div>
 
-          <div
-            style={{
-              padding: '10px 12px',
-              borderRadius: '8px',
-              background: 'rgba(16, 185, 129, 0.08)',
-              border: '1px solid rgba(16, 185, 129, 0.22)',
-              fontSize: '0.73rem',
-              color: 'var(--text-secondary, #a1a1aa)',
-              lineHeight: 1.45
-            }}
-          >
-            <strong style={{ color: '#10b981' }}>Gasless Blockchain Audit:</strong> Submitting this declaration immediately credits the campaign, prevents duplicate reference claims, and notarizes the deposit onto Ethereum Sepolia. If a donor&apos;s <code style={{ color: '#38bdf8' }}>BBXXXXXX</code> code is entered, their account is automatically credited and notified.
-          </div>
+              <div className="ddm-field">
+                <label htmlFor="ddm-ref" className="ddm-label">
+                  Payment Reference No. <span className="ddm-req">*</span>
+                </label>
+                <div className="ddm-input-wrap">
+                  <input
+                    id="ddm-ref"
+                    type="text"
+                    className="ddm-input is-mono"
+                    placeholder={activeRail.refPlaceholder}
+                    value={referenceNumber}
+                    onChange={(e) => setReferenceNumber(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+            </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', paddingTop: '4px' }}>
-            <button
-              type="button"
-              disabled={submitting}
-              onClick={() => onClose?.()}
-              className="btn btn-outline btn-sm"
-              style={{ borderRadius: '8px', padding: '7px 14px' }}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="btn btn-primary btn-sm"
-              style={{ borderRadius: '8px', padding: '7px 16px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>
-                {submitting ? 'hourglass_top' : 'verified'}
+            {/* Audit Notes (Optional) */}
+            <div className="ddm-field">
+              <div className="ddm-label-row">
+                <label htmlFor="ddm-notes" className="ddm-label">
+                  Audit Notes
+                </label>
+                <span className="ddm-hint">{notes.length} / 200</span>
+              </div>
+              <div className="ddm-input-wrap">
+                <input
+                  id="ddm-notes"
+                  type="text"
+                  maxLength={200}
+                  className="ddm-input"
+                  placeholder="e.g. Received via GCash inbox at 10:15 AM without donor slip"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Calm Sepolia Audit Notice */}
+            <div className="ddm-audit-note">
+              <span className="material-symbols-outlined">verified_user</span>
+              <span>
+                <strong>Gasless Blockchain Audit:</strong> Submitting credits the campaign immediately, locks this reference number against duplicate claims, and notarizes the deposit onto Ethereum Sepolia. Entering a donor&apos;s <code>BBXXXXXX</code> code automatically credits and notifies their account.
               </span>
-              <span>{submitting ? 'Notarizing on Sepolia…' : 'Record & Notarize Deposit'}</span>
-            </button>
+            </div>
+          </div>
+
+          {/* Sticky Footer */}
+          <div className="ddm-footer">
+            <span className="ddm-footer-summary">
+              {parsedAmount >= 1 ? (
+                <>
+                  Crediting <strong>₱{Math.round(parsedAmount).toLocaleString('en-US')}</strong> via {paymentMethod}
+                </>
+              ) : (
+                'Enter deposit amount and trace reference'
+              )}
+            </span>
+
+            <div className="ddm-footer-actions">
+              <button
+                type="button"
+                className="ddm-btn-cancel"
+                disabled={submitting}
+                onClick={() => onClose?.()}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="ddm-btn-submit"
+                disabled={!canSubmit}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>verified</span>
+                <span>{submitting ? 'Notarizing…' : 'Record & Notarize Deposit'}</span>
+              </button>
+            </div>
           </div>
         </form>
       </div>
