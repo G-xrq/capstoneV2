@@ -23,7 +23,7 @@ export default function GovernanceModal({ isOpen, onClose, initialTab = 'accredi
         width: '100vw',
         height: '100vh',
         background: 'rgba(5, 7, 12, 0.85)',
-        backdropFilter: 'blur(12px)',
+        backdropFilter: 'blur(10px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',

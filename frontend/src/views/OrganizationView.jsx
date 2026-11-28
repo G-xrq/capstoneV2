@@ -8408,7 +8408,7 @@ export default function OrganizationView({
       {showAiBudgetModal && (
         <div style={{
           position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-          background: 'rgba(5, 7, 12, 0.8)', backdropFilter: 'blur(12px)',
+          background: 'rgba(5, 7, 12, 0.8)', backdropFilter: 'blur(10px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999,
           padding: '16px'
         }} className="fade-in">
@@ -9050,7 +9050,7 @@ export default function OrganizationView({
       {showSelectQrModal && typeof document !== 'undefined' && createPortal(
         <div style={{
           position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-          background: 'rgba(0, 0, 0, 0.78)', backdropFilter: 'blur(8px)',
+          background: 'rgba(0, 0, 0, 0.78)', backdropFilter: 'blur(10px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999
         }} onClick={() => setShowSelectQrModal(null)}>
           <div

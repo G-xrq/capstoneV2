@@ -4887,7 +4887,7 @@ export default function CampaignCard(props) {
       {modalOpen && createPortal(
         <div style={{
           position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-          background: 'rgba(5, 7, 12, 0.82)', backdropFilter: 'blur(12px)',
+          background: 'rgba(5, 7, 12, 0.82)', backdropFilter: 'blur(10px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999
         }} className="fade-in">
 
@@ -5875,7 +5875,7 @@ export default function CampaignCard(props) {
                     paddingTop: '20px',
                     paddingBottom: '14px',
                     background: 'var(--surface)',
-                    backdropFilter: 'blur(12px)',
+                    backdropFilter: 'blur(10px)',
                     zIndex: 25,
                     borderBottom: '1px solid var(--border, rgba(255,255,255,0.08))',
                     display: 'flex',

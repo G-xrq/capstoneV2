@@ -2082,7 +2082,7 @@ export default function SettingsPanel({
             position: 'fixed',
             inset: 0,
             background: 'rgba(0, 0, 0, 0.88)',
-            backdropFilter: 'blur(12px)',
+            backdropFilter: 'blur(10px)',
             zIndex: 1000000090,
             display: 'flex',
             alignItems: 'center',

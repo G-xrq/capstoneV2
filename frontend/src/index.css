@@ -2824,3 +2824,82 @@ path.leaflet-interactive:focus-visible,
   color: #0d9488 !important;
   text-shadow: 0 0 12px rgba(13, 148, 136, 0.3);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Unified Global Modal Backdrop Blur & Elevation Standard (Dark & Light)
+   Ensures every popup card shares the exact same smooth 10px glass blur.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root,
+[data-theme="dark"] {
+  --modal-backdrop-bg: rgba(0, 0, 0, 0.76);
+  --modal-backdrop-blur: blur(10px);
+}
+
+[data-theme="light"] {
+  --modal-backdrop-bg: rgba(9, 9, 11, 0.46);
+  --modal-backdrop-blur: blur(10px);
+}
+
+.modal-overlay,
+.ledger-modal-backdrop,
+.bbdrts-ngo-dir-overlay,
+.presence-modal-backdrop,
+.bbdrts-b-modal-overlay,
+.bbdrts-details-backdrop,
+.cdm-overlay,
+.ddm-overlay,
+.bbdrts-modal-overlay,
+.bbdrts-disb-overlay,
+.donor-upgrade-backdrop,
+.donor-modal-backdrop,
+.dic-backdrop,
+.bbdrts-edit-camp-backdrop,
+.bbdrts-edit-profile-backdrop,
+.bbdrts-discard-backdrop,
+.bbdrts-fbe-overlay,
+.fem-backdrop,
+.ftv-hotline-backdrop,
+.bbdrts-welcome-backdrop,
+.lbv-backdrop,
+.ltm-backdrop,
+.ngp-backdrop,
+.bbdrts-notif-modal-backdrop,
+.avm-backdrop,
+.onboarding-backdrop,
+.ppm-overlay,
+.vercel-modal-backdrop,
+.vercel-legal-backdrop,
+.modal-backdrop-auth,
+.adp-modal-backdrop,
+.fdm-backdrop,
+.sqm-backdrop,
+.sim-phone-overlay,
+.rcp-modal-backdrop,
+.ngo-dossier-backdrop {
+  background: var(--modal-backdrop-bg) !important;
+  backdrop-filter: var(--modal-backdrop-blur) !important;
+  -webkit-backdrop-filter: var(--modal-backdrop-blur) !important;
+}
+
+/* Guarantee lower-z-index modals always cover the sticky header (z-index: 10000) cleanly */
+.adp-modal-backdrop,
+.vercel-modal-backdrop,
+.fdm-backdrop,
+.bbdrts-fbe-overlay,
+.sim-phone-overlay {
+  z-index: 99999 !important;
+}
+
+/* Nested image/proof lightboxes stay cleanly on top of parent modals with matching smooth blur */
+.disaster-lightbox-backdrop,
+.bbdrts-proof-zoom-overlay,
+.bbdrts-disb-preview-overlay,
+.bbdrts-cropper-overlay,
+.fdm-lightbox-backdrop {
+  backdrop-filter: var(--modal-backdrop-blur) !important;
+  -webkit-backdrop-filter: var(--modal-backdrop-blur) !important;
+}
+
+.fdm-lightbox-backdrop {
+  z-index: 100050 !important;
+}
